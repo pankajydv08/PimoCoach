@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AudioPlayer } from './AudioPlayer';
 import { MicButton } from './MicButton';
 import { usePimsleurCycle } from '../hooks/usePimsleurCycle';
-import { InterviewQuestion, InterviewSession, Evaluation, InterviewMode, TrainMethod } from '../types';
+import { InterviewSession, Evaluation, InterviewMode, TrainMethod } from '../types';
 import {
   startSession,
   getNextQuestion,
@@ -14,8 +14,13 @@ import {
 } from '../services/api';
 import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen } from 'lucide-react';
 
-export function InterviewPractice() {
-  const [mode, setMode] = useState<InterviewMode>('practice');
+interface InterviewPracticeProps {
+  initialMode?: InterviewMode;
+  onExit?: () => void;
+}
+
+export function InterviewPractice({ initialMode = 'practice' }: InterviewPracticeProps) {
+  const [mode, setMode] = useState<InterviewMode>(initialMode);
   const [trainMethod, setTrainMethod] = useState<TrainMethod | null>(null);
   const [jobDescription, setJobDescription] = useState<string>('');
   const [showJobDescInput, setShowJobDescInput] = useState(false);

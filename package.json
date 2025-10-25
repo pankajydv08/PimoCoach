@@ -16,6 +16,7 @@
     "@azure/core-auth": "^1.10.1",
     "@azure/openai": "^2.0.0",
     "@google-cloud/speech": "^7.2.1",
+    "@google-cloud/storage": "^7.17.2",
     "@google-cloud/text-to-speech": "^6.4.0",
     "@supabase/supabase-js": "^2.57.4",
     "body-parser": "^2.2.0",

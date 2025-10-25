@@ -188,3 +188,16 @@ export async function completeSession(sessionId: string) {
 
   return response.json();
 }
+
+export async function getUserSessionHistory() {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/session/user/history`, {
+    headers
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch session history');
+  }
+
+  return response.json();
+}

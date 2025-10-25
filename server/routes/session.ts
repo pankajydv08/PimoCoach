@@ -190,4 +190,31 @@ router.get('/:sessionId/responses', async (req: AuthRequest, res) => {
   }
 });
 
+// Get all sessions for the authenticated user
+router.get('/user/history', async (req: AuthRequest, res) => {
+  try {
+    const user_id = req.user?.id;
+
+    if (!user_id) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { data, error } = await supabase
+      .from('interview_sessions')
+      .select('*')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user sessions:', error);
+      return res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+
+    res.json({ sessions: data || [] });
+  } catch (error) {
+    console.error('Error in GET /user/history:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
