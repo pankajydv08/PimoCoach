@@ -10,7 +10,8 @@ import {
   transcribeAudio,
   evaluateResponse,
   getModelAnswer,
-  getCustomQA
+  getCustomQA,
+  completeSession
 } from '../services/api';
 import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen } from 'lucide-react';
 
@@ -322,6 +323,24 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
       setIsLoading(false);
     }
   }, [session, currentQuestion, questionNumber, updateState, mode, modelAnswer]);
+
+  const handleEndSession = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      setIsLoading(true);
+      console.log('Completing session:', session.id);
+      await completeSession(session.id);
+      console.log('Session completed successfully');
+      
+      // Navigate back to dashboard
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Failed to complete session:', err);
+      setError(err instanceof Error ? err.message : 'Failed to complete session');
+      setIsLoading(false);
+    }
+  }, [session]);
 
   const handleNextQuestion = useCallback(async () => {
     if (!session) return;
@@ -708,7 +727,14 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
               )}
 
               {currentState === 'NEXT' && (
-                <div className="flex justify-center mt-6">
+                <div className="flex justify-center gap-4 mt-6">
+                  <button
+                    onClick={handleEndSession}
+                    disabled={isLoading}
+                    className="px-8 py-3 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    End Session
+                  </button>
                   <button
                     onClick={handleNextQuestion}
                     disabled={isLoading}

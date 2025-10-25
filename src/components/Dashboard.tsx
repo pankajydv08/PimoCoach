@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserSessionHistory } from '../services/api';
+import { getUserSessionHistory, getSessionResponses } from '../services/api';
 import { 
   Calendar, 
   TrendingUp, 
@@ -14,7 +14,9 @@ import {
   Trophy,
   Zap,
   BookOpen,
-  GraduationCap
+  GraduationCap,
+  X,
+  MessageSquare
 } from 'lucide-react';
 
 interface SessionSummary {
@@ -29,6 +31,20 @@ interface SessionSummary {
   completed_at?: string;
 }
 
+interface SessionResponse {
+  id: string;
+  question_number: number;
+  audio_transcript: string;
+  clarity_score: number;
+  confidence_score: number;
+  gpt_evaluation: string;
+  interview_questions: {
+    question_text: string;
+    category: string;
+    difficulty: string;
+  };
+}
+
 interface DashboardProps {
   onStartPractice: (mode: 'practice' | 'train') => void;
 }
@@ -36,6 +52,9 @@ interface DashboardProps {
 export function Dashboard({ onStartPractice }: DashboardProps) {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [selectedSession, setSelectedSession] = useState<SessionSummary | null>(null);
+  const [sessionResponses, setSessionResponses] = useState<SessionResponse[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalSessions: 0,
@@ -51,13 +70,17 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
 
   const fetchSessionHistory = async () => {
     try {
+      console.log('Fetching session history...');
       const data = await getUserSessionHistory();
+      console.log('Session history data:', data);
       const sessionsList = data.sessions || [];
+      console.log('Sessions list:', sessionsList);
       
       setSessions(sessionsList);
       
       // Calculate stats
       const completed = sessionsList.filter((s: SessionSummary) => s.status === 'completed');
+      console.log('Completed sessions:', completed);
       const recentSessions = sessionsList.filter((s: SessionSummary) => {
         const sessionDate = new Date(s.created_at);
         const weekAgo = new Date();
@@ -65,17 +88,20 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
         return sessionDate > weekAgo;
       });
 
-      setStats({
+      const calculatedStats = {
         totalSessions: completed.length,
-        totalQuestions: completed.reduce((sum: number, s: SessionSummary) => sum + s.total_questions, 0),
+        totalQuestions: completed.reduce((sum: number, s: SessionSummary) => sum + (s.total_questions || 0), 0),
         avgClarity: completed.length > 0 
-          ? completed.reduce((sum: number, s: SessionSummary) => sum + s.avg_clarity_score, 0) / completed.length 
+          ? completed.reduce((sum: number, s: SessionSummary) => sum + (s.avg_clarity_score || 0), 0) / completed.length 
           : 0,
         avgConfidence: completed.length > 0
-          ? completed.reduce((sum: number, s: SessionSummary) => sum + s.avg_confidence_score, 0) / completed.length
+          ? completed.reduce((sum: number, s: SessionSummary) => sum + (s.avg_confidence_score || 0), 0) / completed.length
           : 0,
         recentSessions: recentSessions.length
-      });
+      };
+
+      console.log('Calculated stats:', calculatedStats);
+      setStats(calculatedStats);
 
       setLoading(false);
     } catch (error) {
@@ -101,6 +127,24 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
     if (score >= 80) return 'text-green-600 bg-green-50';
     if (score >= 60) return 'text-yellow-600 bg-yellow-50';
     return 'text-red-600 bg-red-50';
+  };
+
+  const handleViewSession = async (session: SessionSummary) => {
+    setSelectedSession(session);
+    setLoadingResponses(true);
+    try {
+      const data = await getSessionResponses(session.id);
+      setSessionResponses(data.responses || []);
+    } catch (error) {
+      console.error('Failed to fetch session responses:', error);
+    } finally {
+      setLoadingResponses(false);
+    }
+  };
+
+  const handleCloseSessionDetail = () => {
+    setSelectedSession(null);
+    setSessionResponses([]);
   };
 
   return (
@@ -252,7 +296,11 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           ) : (
             <div className="divide-y divide-gray-200">
               {sessions.slice(0, 5).map((session) => (
-                <div key={session.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <button
+                  key={session.id}
+                  onClick={() => handleViewSession(session)}
+                  className="w-full p-6 hover:bg-gray-50 transition-colors text-left"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -262,8 +310,12 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
                         <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
                           {session.difficulty_level}
                         </span>
-                        {session.status === 'completed' && (
+                        {session.status === 'completed' ? (
                           <Trophy className="w-4 h-4 text-yellow-500" />
+                        ) : (
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">
+                            In Progress
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
@@ -287,11 +339,9 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
                         </div>
                       )}
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -330,6 +380,116 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           </div>
         )}
       </div>
+
+      {/* Session Detail Modal */}
+      {selectedSession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Session Details</h2>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                    {selectedSession.session_type}
+                  </span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                    {selectedSession.difficulty_level}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    {formatDate(selectedSession.created_at)}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseSessionDetail}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingResponses ? (
+                <div className="text-center py-12">
+                  <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-gray-600">Loading responses...</p>
+                </div>
+              ) : sessionResponses.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No responses found for this session</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {sessionResponses.map((response, index) => (
+                    <div key={response.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                      {/* Question */}
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                            {index + 1}
+                          </span>
+                          <h3 className="text-lg font-semibold text-gray-900">Question</h3>
+                        </div>
+                        <p className="text-gray-700 ml-10">{response.interview_questions.question_text}</p>
+                      </div>
+
+                      {/* Your Answer */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-600 mb-2 ml-10">Your Answer:</h4>
+                        <p className="text-gray-800 ml-10 bg-white p-4 rounded-lg border border-gray-200">
+                          {response.audio_transcript || 'No transcript available'}
+                        </p>
+                      </div>
+
+                      {/* Scores */}
+                      {response.clarity_score !== null && response.confidence_score !== null && (
+                        <div className="flex items-center gap-4 ml-10 mb-4">
+                          <div className={`px-4 py-2 rounded-lg text-sm font-medium ${getScoreColor(response.clarity_score)}`}>
+                            Clarity: {Math.round(response.clarity_score)}%
+                          </div>
+                          <div className={`px-4 py-2 rounded-lg text-sm font-medium ${getScoreColor(response.confidence_score)}`}>
+                            Confidence: {Math.round(response.confidence_score)}%
+                          </div>
+                        </div>
+                      )}
+
+                      {/* AI Feedback */}
+                      {response.gpt_evaluation && (
+                        <div className="ml-10">
+                          <h4 className="text-sm font-semibold text-gray-600 mb-2">AI Feedback:</h4>
+                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <p className="text-gray-700 whitespace-pre-wrap">{response.gpt_evaluation}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {selectedSession.status === 'completed' && (
+                  <span>
+                    Session completed • {selectedSession.total_questions} questions answered
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleCloseSessionDetail}
+                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
