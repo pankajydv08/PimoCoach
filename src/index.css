@@ -1,3 +1,68 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Theme variables and helpers */
+:root {
+	--bg: #f8fafc; /* slate-50 */
+	--card: #ffffff;
+	--text: #0f172a; /* gray-900 */
+	--muted: #e5e7eb; /* gray-200 */
+	--accent: #3b82f6; /* blue-500 */
+	--accent-2: #7c3aed; /* purple-600 */
+	--primary-weak: #475569;
+}
+
+.theme-dark {
+	--bg: #0b1220; /* dark background */
+	--card: #0f1724; /* slightly lighter */
+	--text: #e6eef8; /* light text */
+	--muted: #1f2a37; /* muted borders */
+	--accent: #60a5fa;
+	--accent-2: #a78bfa;
+	--primary-weak: #94a3b8;
+}
+
+/* Utility classes that use variables (keeps Tailwind in place while enabling theme) */
+.bg-app { background-color: var(--bg); }
+.bg-card { background-color: var(--card); }
+.text-primary { color: var(--text); }
+.text-muted { color: var(--primary-weak); }
+.border-muted { border-color: var(--muted) !important; }
+.accent { color: var(--accent); }
+.accent-bg { background-color: var(--accent); }
+.accent-2 { color: var(--accent-2); }
+
+/* Smooth transitions for theme changes */
+html, body, .bg-app, .bg-card, .text-primary, .text-muted {
+	transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease;
+}
+
+/* Apply variables globally so plain text and elements pick up theme colors */
+html, body {
+	background-color: var(--bg);
+	color: var(--text);
+}
+
+/* Common Tailwind utility overrides to map to theme variables (use with caution) */
+.bg-white { background-color: var(--card) !important; }
+.bg-gray-50 { background-color: var(--bg) !important; }
+.bg-blue-50 { background-color: rgba(59,130,246,0.06) !important; }
+.bg-indigo-50 { background-color: rgba(99,102,241,0.06) !important; }
+
+.border-gray-200 { border-color: var(--muted) !important; }
+.divide-gray-200 > * + * { border-top-color: var(--muted) !important; }
+
+.text-gray-900, .text-gray-800 { color: var(--text) !important; }
+.text-gray-700, .text-gray-600, .text-gray-500 { color: var(--primary-weak) !important; }
+.text-gray-400, .text-gray-300 { color: rgba(255,255,255,0.6) !important; }
+
+/* Buttons/hover tweaks for header toggle */
+.header-toggle { transition: background-color 150ms ease, color 150ms ease; }
+.header-toggle:hover { background-color: rgba(15,23,42,0.04); }
+.theme-dark .header-toggle:hover { background-color: rgba(255,255,255,0.06); }
+
+/* Ensure cards and modal backgrounds use card variable when not explicitly set */
+.modal-bg, .card-bg { background-color: var(--card) !important; }
+
+

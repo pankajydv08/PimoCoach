@@ -148,7 +148,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-app p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -163,7 +163,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           {/* Practice Mode */}
           <button
             onClick={() => onStartPractice('practice')}
-            className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all border-2 border-transparent hover:border-blue-500 text-left group"
+            className="bg-card rounded-xl p-6 shadow-md hover:shadow-xl transition-all border-2 border-transparent hover:border-blue-500 text-left group"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
@@ -184,7 +184,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           {/* Train Mode */}
           <button
             onClick={() => onStartPractice('train')}
-            className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all border-2 border-transparent hover:border-purple-500 text-left group"
+            className="bg-card rounded-xl p-6 shadow-md hover:shadow-xl transition-all border-2 border-transparent hover:border-purple-500 text-left group"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
@@ -206,7 +206,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Sessions */}
-          <div className="bg-white rounded-xl p-6 shadow-md">
+          <div className="bg-card rounded-xl p-6 shadow-md">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-blue-600" />
@@ -219,7 +219,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           </div>
 
           {/* Total Questions */}
-          <div className="bg-white rounded-xl p-6 shadow-md">
+          <div className="bg-card rounded-xl p-6 shadow-md">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Zap className="w-6 h-6 text-green-600" />
@@ -232,7 +232,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           </div>
 
           {/* Avg Clarity */}
-          <div className="bg-white rounded-xl p-6 shadow-md">
+          <div className="bg-card rounded-xl p-6 shadow-md">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -247,7 +247,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           </div>
 
           {/* Avg Confidence */}
-          <div className="bg-white rounded-xl p-6 shadow-md">
+          <div className="bg-card rounded-xl p-6 shadow-md">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Award className="w-6 h-6 text-orange-600" />
@@ -263,8 +263,8 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
         </div>
 
         {/* Session History */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+  <div className="bg-card rounded-xl shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-muted flex items-center justify-between">
             <div className="flex items-center gap-3">
               <History className="w-5 h-5 text-gray-600" />
               <h2 className="text-xl font-bold text-gray-900">Recent Sessions</h2>
@@ -279,7 +279,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           {loading ? (
             <div className="p-12 text-center">
               <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-gray-600">Loading sessions...</p>
+              <p className="mt-4 text-muted">Loading sessions...</p>
             </div>
           ) : sessions.length === 0 ? (
             <div className="p-12 text-center">
@@ -294,12 +294,12 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y" style={{ borderColor: 'var(--muted)' }}>
               {sessions.slice(0, 5).map((session) => (
                 <button
                   key={session.id}
                   onClick={() => handleViewSession(session)}
-                  className="w-full p-6 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full p-6 hover:bg-opacity-5 transition-colors text-left"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -339,7 +339,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
                         </div>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-muted" />
                   </div>
                 </button>
               ))}

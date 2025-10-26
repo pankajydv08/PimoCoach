@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { InterviewPractice } from './components/InterviewPractice';
 import { Dashboard } from './components/Dashboard';
 import { Login } from './components/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LogOut, User, Home, Mic } from 'lucide-react';
+import { LogOut, User, Home, Mic, Sun, Moon } from 'lucide-react';
 
 type AppView = 'dashboard' | 'practice' | 'train';
 type InterviewMode = 'practice' | 'train';
@@ -13,6 +13,32 @@ function AppContent() {
   const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
   const [interviewMode, setInterviewMode] = useState<InterviewMode>('practice');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('pimocoach-theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      // fallback to system preference
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    } catch (e) {
+      /* ignore */
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    // apply theme class on root
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('theme-dark');
+    } else {
+      root.classList.remove('theme-dark');
+    }
+    try {
+      localStorage.setItem('pimocoach-theme', theme);
+    } catch (e) {
+      /* ignore */
+    }
+  }, [theme]);
 
   if (!user) {
     return <Login />;
@@ -60,6 +86,14 @@ function AppContent() {
 
           {/* User Profile */}
           <div className="flex items-center gap-3">
+            {/* Theme toggle */}
+            <button
+              onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+              title="Toggle theme"
+              className="p-2 rounded-lg transition-colors header-toggle"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             {user.user_metadata?.avatar_url ? (
               <img
                 src={user.user_metadata.avatar_url}

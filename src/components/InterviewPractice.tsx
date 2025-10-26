@@ -264,9 +264,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
       updateState('EVALUATE');
 
       // In train mode, evaluate against model answer; in practice mode, against question
-      const evaluationContext = mode === 'train' && modelAnswer
-        ? `Model Answer: "${modelAnswer}"\n\nEvaluate how well the user's answer matches the model answer in terms of content, structure, and delivery.`
-        : currentQuestion.question_text;
+      // (previously constructed evaluationContext removed — API call uses explicit parameters)
 
       const { evaluation } = await evaluateResponse(
         session.id,
@@ -421,8 +419,8 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
   const stateDisplay = getStateDisplay();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen bg-app flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full bg-card rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             AI Interview Coach
