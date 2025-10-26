@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Mic, Square, Loader2 } from 'lucide-react';
+import '../styles/recording.css';
 
 interface MicButtonProps {
   onRecordingComplete: (audioBlob: Blob) => void;
@@ -19,12 +20,57 @@ export function MicButton({
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [audioLevels, setAudioLevels] = useState<number[]>(new Array(40).fill(0));
+  const [recordingTime, setRecordingTime] = useState(0);
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<number | null>(null);
+
+  // Visualize audio levels
+  const visualizeAudio = useCallback((analyser: AnalyserNode) => {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const updateLevels = () => {
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average volume
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+      
+      // Update audio levels array (shift left and add new value)
+      setAudioLevels(prev => {
+        const newLevels = [...prev.slice(1), average / 255];
+        return newLevels;
+      });
+
+      animationFrameRef.current = requestAnimationFrame(updateLevels);
+    };
+
+    updateLevels();
+  }, []);
+
+  // Cleanup animation frame and timer on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, []);
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
+      setRecordingTime(0);
+      setAudioLevels(new Array(40).fill(0));
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -32,6 +78,21 @@ export function MicButton({
           autoGainControl: true
         }
       });
+
+      // Setup audio context for visualization
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+      
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      
+      // Start visualization
+      visualizeAudio(analyser);
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -49,19 +110,40 @@ export function MicButton({
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         onRecordingComplete(audioBlob);
         stream.getTracks().forEach(track => track.stop());
+        
+        // Cleanup audio context
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        }
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
+        
         setIsProcessing(false);
       };
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsRecording(true);
+      
+      // Start timer
+      timerIntervalRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
       onRecordingStart?.();
     } catch (err) {
       console.error('Failed to start recording:', err);
       setError('Microphone access denied');
       setIsRecording(false);
     }
-  }, [onRecordingComplete, onRecordingStart]);
+  }, [onRecordingComplete, onRecordingStart, visualizeAudio]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -80,8 +162,36 @@ export function MicButton({
     }
   }, [isRecording, startRecording, stopRecording]);
 
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className={`flex flex-col items-center gap-2 ${className}`}>
+    <div className={`flex flex-col items-center gap-4 ${className}`}>
+      {/* Waveform Visualization - WhatsApp style */}
+      {isRecording && (
+        <div className="waveform-container">
+          <div className="waveform-bars">
+            {audioLevels.map((level, index) => (
+              <div
+                key={index}
+                className="waveform-bar"
+                style={{
+                  height: `${Math.max(4, level * 100)}%`,
+                  opacity: 0.3 + level * 0.7
+                }}
+              />
+            ))}
+          </div>
+          <div className="recording-time">
+            {formatTime(recordingTime)}
+          </div>
+        </div>
+      )}
+
       <button
         onClick={handleClick}
         disabled={disabled || isProcessing}
@@ -89,7 +199,7 @@ export function MicButton({
           relative w-20 h-20 rounded-full flex items-center justify-center
           transition-all duration-300 shadow-lg
           ${isRecording
-            ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+            ? 'bg-red-500 hover:bg-red-600 mic-recording-pulse'
             : 'bg-blue-600 hover:bg-blue-700'
           }
           ${(disabled || isProcessing) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
