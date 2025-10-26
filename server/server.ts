@@ -23,7 +23,8 @@ app.get('/api/health', (req, res) => {
     services: {
       supabase: !!process.env.VITE_SUPABASE_URL,
       github_models: !!process.env.GITHUB_TOKEN,
-      google_cloud: !!process.env.GOOGLE_APPLICATION_CREDENTIALS
+      assemblyai: !!process.env.ASSEMBLYAI_API_KEY,
+      google_cloud_tts: !!process.env.GOOGLE_APPLICATION_CREDENTIALS
     }
   });
 });
@@ -39,6 +40,8 @@ app.listen(PORT, () => {
   console.log(`🎙️  AI Interview Coach API running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🔐 Authentication: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Enabled (verified)' : 'Development mode (unverified)'}`);
+  console.log(`🎤 Speech-to-Text: AssemblyAI ${process.env.ASSEMBLYAI_API_KEY ? '(configured)' : '(missing API key)'}`);
+  console.log(`🔊 Text-to-Speech: Google Cloud ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? '(configured)' : '(missing credentials)'}`);
 });
 
 export default app;
