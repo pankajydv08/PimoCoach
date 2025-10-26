@@ -1,0 +1,970 @@
+openapi: 3.0.3
+info:
+  title: PimoCoach API
+  description: |
+    AI-powered interview coaching platform API that helps users practice and improve their interview skills.
+    
+    ## Features
+    - Session management for interview practice
+    - AI-generated interview questions
+    - Speech-to-text transcription
+    - Text-to-speech synthesis
+    - AI-powered response evaluation and feedback
+    
+    ## Authentication
+    All endpoints except `/api/health` require JWT authentication via Supabase.
+    Include the token in the Authorization header: `Bearer <token>`
+  version: 1.0.0
+  contact:
+    name: PimoCoach Support
+    url: https://github.com/Nischay-loq/PimoCoach
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+  - url: https://api.pimocoach.com/api
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Session
+    description: Interview session management
+  - name: Question
+    description: Question generation and retrieval
+  - name: Evaluation
+    description: Response evaluation and feedback
+  - name: Speech-to-Text
+    description: Audio transcription services
+  - name: Text-to-Speech
+    description: Speech synthesis services
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health status and service availability
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                timestamp: '2025-10-27T12:34:56.789Z'
+                services:
+                  supabase: true
+                  github_models: true
+                  assemblyai: true
+                  google_cloud_tts: true
+
+  /session/start:
+    post:
+      tags:
+        - Session
+      summary: Start new interview session
+      description: Create a new interview practice session for the authenticated user
+      operationId: startSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_type:
+                  type: string
+                  enum: [general, technical, behavioral]
+                  default: general
+                  description: Type of interview session
+                difficulty_level:
+                  type: string
+                  enum: [easy, medium, hard]
+                  default: medium
+                  description: Difficulty level of questions
+            example:
+              session_type: technical
+              difficulty_level: hard
+      responses:
+        '200':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: '#/components/schemas/InterviewSession'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /session/{sessionId}:
+    get:
+      tags:
+        - Session
+      summary: Get session details
+      description: Retrieve details of a specific interview session
+      operationId: getSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      responses:
+        '200':
+          description: Session details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: '#/components/schemas/InterviewSession'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Session
+      summary: Update session
+      description: Update details of an existing session
+      operationId: updateSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, paused, completed, abandoned]
+                session_type:
+                  type: string
+                  enum: [general, technical, behavioral]
+                difficulty_level:
+                  type: string
+                  enum: [easy, medium, hard]
+            example:
+              status: paused
+      responses:
+        '200':
+          description: Session updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: '#/components/schemas/InterviewSession'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /session/{sessionId}/complete:
+    post:
+      tags:
+        - Session
+      summary: Complete session
+      description: Mark session as completed and calculate final scores
+      operationId: completeSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      responses:
+        '200':
+          description: Session completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: '#/components/schemas/InterviewSession'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /session/{sessionId}/responses:
+    get:
+      tags:
+        - Session
+      summary: Get session responses
+      description: Retrieve all responses for a specific session with questions and feedback
+      operationId: getSessionResponses
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIdParam'
+      responses:
+        '200':
+          description: Responses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  responses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserResponseWithDetails'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /session/user/history:
+    get:
+      tags:
+        - Session
+      summary: Get user session history
+      description: Retrieve all sessions for the authenticated user
+      operationId: getUserHistory
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Session history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewSession'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /question/next:
+    post:
+      tags:
+        - Question
+      summary: Get next question
+      description: Get the next interview question for a session (from database or AI-generated)
+      operationId: getNextQuestion
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sessionId
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+                  description: UUID of the session
+                category:
+                  type: string
+                  enum: [behavioral, technical, custom]
+                  default: behavioral
+                  description: Question category
+                difficulty:
+                  type: string
+                  enum: [easy, medium, hard]
+                  default: medium
+                  description: Question difficulty
+            example:
+              sessionId: 550e8400-e29b-41d4-a716-446655440000
+              category: behavioral
+              difficulty: medium
+      responses:
+        '200':
+          description: Question retrieved or generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  question:
+                    $ref: '#/components/schemas/InterviewQuestion'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /question/model-answer:
+    post:
+      tags:
+        - Question
+      summary: Generate model answer
+      description: Generate an AI model answer for a given question
+      operationId: getModelAnswer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - questionText
+              properties:
+                questionText:
+                  type: string
+                  description: The interview question
+                category:
+                  type: string
+                  enum: [behavioral, technical, custom]
+                  default: behavioral
+                difficulty:
+                  type: string
+                  enum: [easy, medium, hard]
+                  default: medium
+            example:
+              questionText: Tell me about a time when you had to handle a difficult team member.
+              category: behavioral
+              difficulty: medium
+      responses:
+        '200':
+          description: Model answer generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  modelAnswer:
+                    type: string
+                    description: AI-generated model answer
+              example:
+                modelAnswer: In my previous role as a team lead, I encountered a situation...
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /question/custom-qa:
+    post:
+      tags:
+        - Question
+      summary: Generate custom Q&A
+      description: Generate a custom question and answer based on a job description
+      operationId: generateCustomQA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jobDescription
+              properties:
+                jobDescription:
+                  type: string
+                  description: The job description or posting
+                sessionId:
+                  type: string
+                  format: uuid
+                  description: Optional session ID to avoid duplicate questions
+            example:
+              jobDescription: Senior Software Engineer role focusing on distributed systems...
+              sessionId: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Custom Q&A generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  question:
+                    $ref: '#/components/schemas/InterviewQuestion'
+                  modelAnswer:
+                    type: string
+                    description: Model answer for the custom question
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /question/{questionId}:
+    get:
+      tags:
+        - Question
+      summary: Get question by ID
+      description: Retrieve details of a specific question
+      operationId: getQuestion
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: questionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the question
+      responses:
+        '200':
+          description: Question retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  question:
+                    $ref: '#/components/schemas/InterviewQuestion'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /evaluate:
+    post:
+      tags:
+        - Evaluation
+      summary: Evaluate response
+      description: Evaluate a user's response using AI and save feedback
+      operationId: evaluateResponse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sessionId
+                - questionId
+                - questionNumber
+                - transcript
+                - questionText
+              properties:
+                sessionId:
+                  type: string
+                  format: uuid
+                  description: UUID of the session
+                questionId:
+                  type: string
+                  format: uuid
+                  description: UUID of the question
+                questionNumber:
+                  type: integer
+                  minimum: 1
+                  description: Question number in the session
+                transcript:
+                  type: string
+                  description: User's transcribed response
+                questionText:
+                  type: string
+                  description: The interview question
+            example:
+              sessionId: 550e8400-e29b-41d4-a716-446655440000
+              questionId: quest-uuid-1
+              questionNumber: 1
+              transcript: I would start by having a one-on-one conversation...
+              questionText: Tell me about a time when you had to handle a difficult team member.
+      responses:
+        '200':
+          description: Response evaluated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    $ref: '#/components/schemas/UserResponse'
+                  feedback:
+                    $ref: '#/components/schemas/FeedbackHistory'
+                  evaluation:
+                    $ref: '#/components/schemas/GPTEvaluation'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stt/transcribe:
+    post:
+      tags:
+        - Speech-to-Text
+      summary: Transcribe audio
+      description: Transcribe audio file to text using AssemblyAI
+      operationId: transcribeAudio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file (max 10MB, formats: MP3, WAV, WebM, M4A, OGG)
+      responses:
+        '200':
+          description: Audio transcribed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcript:
+                    type: string
+                    description: Transcribed text
+                  success:
+                    type: boolean
+                    description: Whether transcription was successful
+              example:
+                transcript: I would start by having a one-on-one conversation...
+                success: true
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tts/synthesize:
+    post:
+      tags:
+        - Text-to-Speech
+      summary: Synthesize speech
+      description: Convert text to speech using Google Cloud TTS
+      operationId: synthesizeSpeech
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: Text to convert to speech
+            example:
+              text: Tell me about a time when you had to handle a difficult team member.
+      responses:
+        '200':
+          description: Speech synthesized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audio:
+                    type: string
+                    format: byte
+                    description: Base64-encoded MP3 audio data
+                  format:
+                    type: string
+                    enum: [mp3]
+                    description: Audio format
+              example:
+                audio: //uQx...base64data...==
+                format: mp3
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from Supabase authentication
+
+  parameters:
+    SessionIdParam:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the interview session
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+          description: Overall API status
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+        services:
+          type: object
+          properties:
+            supabase:
+              type: boolean
+              description: Supabase availability
+            github_models:
+              type: boolean
+              description: GitHub Models/Azure OpenAI availability
+            assemblyai:
+              type: boolean
+              description: AssemblyAI availability
+            google_cloud_tts:
+              type: boolean
+              description: Google Cloud TTS availability
+
+    InterviewSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique session identifier
+        user_id:
+          type: string
+          format: uuid
+          description: User identifier
+        session_type:
+          type: string
+          enum: [general, technical, behavioral]
+          description: Type of interview
+        difficulty_level:
+          type: string
+          enum: [easy, medium, hard]
+          description: Difficulty level
+        started_at:
+          type: string
+          format: date-time
+          description: Session start time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Session completion time
+        total_questions:
+          type: integer
+          minimum: 0
+          description: Total number of questions answered
+        avg_clarity_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          description: Average clarity score
+        avg_confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          description: Average confidence score
+        status:
+          type: string
+          enum: [active, paused, completed, abandoned]
+          description: Current session status
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation time
+
+    InterviewQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique question identifier
+        question_text:
+          type: string
+          description: The interview question
+        category:
+          type: string
+          enum: [behavioral, technical, custom]
+          description: Question category
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+          description: Question difficulty
+        expected_keywords:
+          type: array
+          items:
+            type: string
+          description: Expected keywords in response
+        follow_up_prompts:
+          type: array
+          items:
+            type: string
+          description: Follow-up questions
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation time
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique response identifier
+        session_id:
+          type: string
+          format: uuid
+          description: Associated session ID
+        question_id:
+          type: string
+          format: uuid
+          description: Associated question ID
+        question_number:
+          type: integer
+          minimum: 1
+          description: Question number in session
+        audio_transcript:
+          type: string
+          nullable: true
+          description: Transcribed audio response
+        clarity_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          nullable: true
+          description: Clarity score (0-10)
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          nullable: true
+          description: Confidence score (0-10)
+        technical_accuracy:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          nullable: true
+          description: Technical accuracy score (0-10)
+        filler_word_count:
+          type: integer
+          minimum: 0
+          description: Count of filler words
+        speech_pace:
+          type: number
+          format: float
+          nullable: true
+          description: Words per minute
+        pause_count:
+          type: integer
+          minimum: 0
+          description: Number of significant pauses
+        gpt_evaluation:
+          type: string
+          nullable: true
+          description: JSON string of GPT evaluation
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation time
+
+    UserResponseWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/UserResponse'
+        - type: object
+          properties:
+            interview_questions:
+              type: object
+              properties:
+                question_text:
+                  type: string
+                category:
+                  type: string
+                difficulty:
+                  type: string
+            feedback_history:
+              type: array
+              items:
+                $ref: '#/components/schemas/FeedbackHistory'
+
+    FeedbackHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique feedback identifier
+        response_id:
+          type: string
+          format: uuid
+          description: Associated response ID
+        session_id:
+          type: string
+          format: uuid
+          description: Associated session ID
+        feedback_text:
+          type: string
+          description: Detailed feedback text
+        improvement_suggestions:
+          type: array
+          items:
+            type: string
+          description: Suggestions for improvement
+        strengths:
+          type: array
+          items:
+            type: string
+          description: Identified strengths
+        areas_to_improve:
+          type: array
+          items:
+            type: string
+          description: Areas needing improvement
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation time
+
+    GPTEvaluation:
+      type: object
+      properties:
+        clarity_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          description: Clarity score
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          description: Confidence score
+        technical_accuracy:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+          description: Technical accuracy score
+        filler_word_count:
+          type: integer
+          minimum: 0
+          description: Count of filler words
+        speech_pace:
+          type: number
+          format: float
+          description: Words per minute
+        pause_count:
+          type: integer
+          minimum: 0
+          description: Number of significant pauses
+        feedback_text:
+          type: string
+          description: Detailed feedback
+        improvement_suggestions:
+          type: array
+          items:
+            type: string
+          description: Improvement suggestions
+        strengths:
+          type: array
+          items:
+            type: string
+          description: Identified strengths
+        areas_to_improve:
+          type: array
+          items:
+            type: string
+          description: Areas to improve
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error description
+
+  responses:
+    BadRequestError:
+      description: Bad Request - Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Missing required fields
+            message: sessionId, questionId, transcript, and questionText are required
+
+    UnauthorizedError:
+      description: Unauthorized - Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: User not authenticated
+
+    NotFoundError:
+      description: Not Found - Resource doesn't exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Session not found
+
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Internal server error
+            message: An unexpected error occurred
+
+security:
+  - BearerAuth: []
