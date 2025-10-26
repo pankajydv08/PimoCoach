@@ -118,19 +118,26 @@ export async function evaluateResponse(
   transcript: string
 ) {
   const headers = await getAuthHeaders();
+  
+  const requestData = {
+    sessionId,
+    questionId,
+    questionNumber,
+    questionText,
+    transcript
+  };
+  
+  console.log('🔍 Sending to /api/evaluate:', requestData);
+  
   const response = await fetch(`${API_BASE_URL}/evaluate`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      sessionId,
-      questionId,
-      questionNumber,
-      questionText,
-      transcript
-    })
+    body: JSON.stringify(requestData)
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Evaluate API error:', response.status, errorText);
     throw new Error('Failed to evaluate response');
   }
 

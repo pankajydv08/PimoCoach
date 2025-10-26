@@ -272,7 +272,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         session.id,
         currentQuestion.id,
         questionNumber,
-        evaluationContext,
+        currentQuestion.question_text,
         audioTranscript
       );
 

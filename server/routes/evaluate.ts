@@ -6,6 +6,8 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
+    console.log('🔍 Received evaluate request body:', req.body);
+    
     const {
       sessionId,
       questionId,
@@ -14,7 +16,16 @@ router.post('/', async (req, res) => {
       questionText
     } = req.body;
 
+    console.log('🔍 Extracted fields:', {
+      sessionId: sessionId ? 'present' : 'MISSING',
+      questionId: questionId ? 'present' : 'MISSING', 
+      questionNumber: questionNumber ? 'present' : 'MISSING',
+      transcript: transcript ? 'present' : 'MISSING',
+      questionText: questionText ? 'present' : 'MISSING'
+    });
+
     if (!sessionId || !questionId || !transcript || !questionText) {
+      console.log('❌ Validation failed - missing required fields');
       return res.status(400).json({
         error: 'Missing required fields: sessionId, questionId, transcript, questionText'
       });
