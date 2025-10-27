@@ -12,11 +12,15 @@ export interface InterviewSession {
   created_at: string;
 }
 
+export type QuestionCategory = 'technical' | 'behavioral' | 'situational' | 'company-specific' | 'general';
+
+export type DifficultyLevel = 'easy' | 'medium' | 'hard';
+
 export interface InterviewQuestion {
   id: string;
   question_text: string;
-  category: string;
-  difficulty: string;
+  category: QuestionCategory;
+  difficulty: DifficultyLevel;
   expected_keywords: string[];
   follow_up_prompts: string[];
   created_at: string;
