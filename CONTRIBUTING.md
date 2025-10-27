@@ -84,9 +84,9 @@ If you want, open an issue proposing a small task and tag it `good first issue` 
 
 ## Code of conduct
 
-This project follows the Contributor Covenant. By participating, you agree to abide by its terms.
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to abide by its terms.
 
-Link: https://www.contributor-covenant.org/
+For more information, visit: https://www.contributor-covenant.org/
 
 ## License
 
