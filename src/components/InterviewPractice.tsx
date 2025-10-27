@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AudioPlayer } from './AudioPlayer';
 import { MicButton } from './MicButton';
 import { usePimsleurCycle } from '../hooks/usePimsleurCycle';
-import { InterviewSession, Evaluation, InterviewMode, TrainMethod } from '../types';
+import { InterviewSession, Evaluation, InterviewMode, TrainMethod, QuestionCategory, DifficultyLevel } from '../types';
 import {
   startSession,
   getNextQuestion,
@@ -14,7 +14,7 @@ import {
   getCustomQA,
   completeSession
 } from '../services/api';
-import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen, Filter } from 'lucide-react';
 
 interface InterviewPracticeProps {
   initialMode?: InterviewMode;
@@ -24,6 +24,8 @@ interface InterviewPracticeProps {
 export function InterviewPractice({ initialMode = 'practice' }: InterviewPracticeProps) {
   const [mode, setMode] = useState<InterviewMode>(initialMode);
   const [trainMethod, setTrainMethod] = useState<TrainMethod | null>(null);
+  const [category, setCategory] = useState<QuestionCategory>('behavioral');
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
   const [jobDescription, setJobDescription] = useState<string>('');
   const [showJobDescInput, setShowJobDescInput] = useState(false);
   const [session, setSession] = useState<InterviewSession | null>(null);
@@ -54,7 +56,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
     setError(null);
 
     try {
-      const { session: newSession } = await startSession('behavioral', 'medium');
+      const { session: newSession } = await startSession('behavioral', difficulty);
       setSession(newSession);
 
       // For custom train mode, generate question from job description
@@ -69,7 +71,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         setAudioBase64(audio);
       } else {
         // Default mode: get question from database
-        const { question } = await getNextQuestion(newSession.id, 'behavioral', 'medium');
+        const { question } = await getNextQuestion(newSession.id, category, difficulty);
         setQuestionNumber(1);
 
         const { audio } = await synthesizeSpeech(question.question_text);
@@ -85,7 +87,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
     } finally {
       setIsLoading(false);
     }
-  }, [startCycle, mode, trainMethod, jobDescription]);
+  }, [startCycle, mode, trainMethod, jobDescription, category, difficulty]);
 
   const handleStartInterview = (selectedMode: InterviewMode, method?: TrainMethod) => {
     setMode(selectedMode);
@@ -360,7 +362,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         setAudioBase64(audio);
       } else {
         // Default mode
-        const { question } = await getNextQuestion(session.id, 'behavioral', 'medium');
+        const { question } = await getNextQuestion(session.id, category, difficulty);
         setQuestionNumber(prev => prev + 1);
 
         const { audio } = await synthesizeSpeech(question.question_text);
@@ -374,7 +376,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
     } finally {
       setIsLoading(false);
     }
-  }, [session, startCycle, mode, trainMethod, jobDescription]);
+  }, [session, startCycle, mode, trainMethod, jobDescription, category, difficulty]);
 
   const getStateDisplay = () => {
     switch (currentState) {
@@ -433,6 +435,62 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
               <p className="text-gray-600 mb-6">
                 Select how you want to practice your interview skills
               </p>
+            </div>
+
+            {/* Question Filters */}
+            <div className="w-full max-w-3xl mb-8 bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="w-5 h-5 text-gray-700" />
+                <h3 className="text-lg font-semibold text-gray-800">Question Preferences</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Question Category
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as QuestionCategory)}
+                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                  >
+                    <option value="behavioral">Behavioral</option>
+                    <option value="technical">Technical</option>
+                    <option value="situational">Situational</option>
+                    <option value="company-specific">Company-Specific</option>
+                    <option value="general">General</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {category === 'behavioral' && 'Past experiences & work behavior'}
+                    {category === 'technical' && 'Technical skills & knowledge'}
+                    {category === 'situational' && 'Hypothetical scenarios'}
+                    {category === 'company-specific' && 'Company culture & fit'}
+                    {category === 'general' && 'General interview questions'}
+                  </p>
+                </div>
+
+                {/* Difficulty Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Difficulty Level
+                  </label>
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {difficulty === 'easy' && 'Great for beginners & warm-up'}
+                    {difficulty === 'medium' && 'Standard interview difficulty'}
+                    {difficulty === 'hard' && 'Advanced & challenging questions'}
+                  </p>
+                </div>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl mb-8">
@@ -575,7 +633,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
           <>
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm font-medium text-gray-600">
                     Question {questionNumber}
                   </span>
@@ -585,6 +643,12 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
                       : 'bg-blue-100 text-blue-700'
                   }`}>
                     {mode === 'train' ? '🎓 Train Mode' : '🎯 Practice Mode'}
+                  </span>
+                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 capitalize">
+                    {category}
+                  </span>
+                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-700 capitalize">
+                    {difficulty}
                   </span>
                 </div>
                 <span className={`text-lg font-semibold ${stateDisplay.color}`}>

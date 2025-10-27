@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { QuestionCategory, DifficultyLevel } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -11,7 +12,7 @@ async function getAuthHeaders() {
   };
 }
 
-export async function startSession(sessionType = 'general', difficulty = 'medium') {
+export async function startSession(sessionType = 'general', difficulty: DifficultyLevel = 'medium') {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/session/start`, {
     method: 'POST',
@@ -26,7 +27,7 @@ export async function startSession(sessionType = 'general', difficulty = 'medium
   return response.json();
 }
 
-export async function getNextQuestion(sessionId: string, category = 'behavioral', difficulty = 'medium') {
+export async function getNextQuestion(sessionId: string, category: QuestionCategory = 'behavioral', difficulty: DifficultyLevel = 'medium') {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/question/next`, {
     method: 'POST',
@@ -41,7 +42,7 @@ export async function getNextQuestion(sessionId: string, category = 'behavioral'
   return response.json();
 }
 
-export async function getModelAnswer(questionText: string, category = 'behavioral', difficulty = 'medium') {
+export async function getModelAnswer(questionText: string, category: QuestionCategory = 'behavioral', difficulty: DifficultyLevel = 'medium') {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/question/model-answer`, {
     method: 'POST',
