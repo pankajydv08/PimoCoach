@@ -14,7 +14,7 @@ import {
   getCustomQA,
   completeSession
 } from '../services/api';
-import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen, Filter, Trophy, Star, TrendingUp, X } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen, Filter, Trophy, Star, TrendingUp } from 'lucide-react';
 
 interface InterviewPracticeProps {
   initialMode?: InterviewMode;
@@ -359,8 +359,6 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         avgClarity: allEvaluations.length > 0 ? claritySum / allEvaluations.length : 0,
         avgConfidence: allEvaluations.length > 0 ? confidenceSum / allEvaluations.length : 0,
         avgAccuracy: allEvaluations.length > 0 ? accuracySum / allEvaluations.length : 0,
-        totalScore: 0 // Will be calculated
-      };
         totalScore: 0 // Will be calculated
       };
       
