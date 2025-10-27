@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserSessionHistory, getSessionResponses } from '../services/api';
+import {
+  StatsSkeleton,
+  SessionHistorySkeleton
+} from './Skeleton';
 import { 
   Calendar, 
   TrendingUp, 
@@ -204,7 +208,10 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {loading ? (
+          <StatsSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Sessions */}
           <div className="bg-card rounded-xl p-6 shadow-md">
             <div className="flex items-center gap-4">
@@ -260,7 +267,8 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Session History */}
   <div className="bg-card rounded-xl shadow-md overflow-hidden">
@@ -280,6 +288,8 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
             <div className="p-12 text-center">
               <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
               <p className="mt-4 text-muted">Loading sessions...</p>
+            <div className="p-6">
+              <SessionHistorySkeleton />
             </div>
           ) : sessions.length === 0 ? (
             <div className="p-12 text-center">
@@ -412,9 +422,8 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-6">
               {loadingResponses ? (
-                <div className="text-center py-12">
-                  <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="mt-4 text-gray-600">Loading responses...</p>
+                <div className="py-6 px-4">
+                  <SessionHistorySkeleton />
                 </div>
               ) : sessionResponses.length === 0 ? (
                 <div className="text-center py-12">

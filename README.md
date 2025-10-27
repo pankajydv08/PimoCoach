@@ -216,29 +216,39 @@ The system evaluates:
 
 ## 📡 API Endpoints
 
-### Public Routes
+**📖 See [docs/API.md](./docs/API.md) for complete API documentation with examples**
+
+**📋 OpenAPI Specification: [swagger.yml](./swagger.yml)** - Import into Postman or Swagger Editor
+
+### Quick Reference
+
+#### Public Routes
 - `GET /api/health` - Health check
 
-### Protected Routes (Auth Required)
+#### Protected Routes (Auth Required)
 
-#### Session Management
+**Session Management**
 - `POST /api/session/start` - Create new session
 - `GET /api/session/:id` - Get session details
 - `PUT /api/session/:id` - Update session
 - `POST /api/session/:id/complete` - Complete session
 - `GET /api/session/:id/responses` - Get all responses
+- `GET /api/session/user/history` - Get user session history
 
-#### Interview Questions
+**Interview Questions**
 - `POST /api/question/next` - Get next question
 - `POST /api/question/model-answer` - Generate model answer
 - `POST /api/question/custom-qa` - Generate custom Q&A from job description
+- `GET /api/question/:id` - Get question by ID
 
-#### Voice Services
+**Voice Services**
 - `POST /api/tts/synthesize` - Text to speech
 - `POST /api/stt/transcribe` - Speech to text
 
-#### Evaluation
+**Evaluation**
 - `POST /api/evaluate` - Evaluate user response with GPT-4o
+
+For detailed request/response formats, authentication, and examples, see the [API Documentation](./docs/API.md).
 
 ## 📁 Project Structure
 
@@ -326,6 +336,8 @@ Quick test checklist:
 
 ## 📚 Documentation
 
+- **[docs/API.md](./docs/API.md)** - Complete API documentation with examples
+- **[swagger.yml](./swagger.yml)** - OpenAPI 3.0 specification
 - [AUTH_SETUP.md](./AUTH_SETUP.md) - Complete authentication setup guide
 - [TESTING_GUIDE.md](./TESTING_GUIDE.md) - Testing and verification guide
 - [Supabase Docs](https://supabase.com/docs) - Database and auth documentation

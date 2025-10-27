@@ -1,3 +1,4 @@
+import { QuestionSkeleton } from './Skeleton';
 import { useState, useCallback, useEffect } from 'react';
 import { AudioPlayer } from './AudioPlayer';
 import { MicButton } from './MicButton';
@@ -597,11 +598,13 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
               </div>
 
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                {currentQuestion && (
+                {isLoading ? (
+                  <QuestionSkeleton />
+                ) : currentQuestion ? (
                   <p className="text-xl text-gray-800 text-center font-medium">
                     {currentQuestion.question_text}
                   </p>
-                )}
+                ) : null}
               </div>
 
               {error && (
