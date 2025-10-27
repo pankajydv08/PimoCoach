@@ -279,6 +279,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
       const { audio } = await synthesizeSpeech(feedbackText);
       
       updateState('FEEDBACK');
+      // Set audio after state transition to prevent race condition
       setAudioBase64(audio);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to process recording';
