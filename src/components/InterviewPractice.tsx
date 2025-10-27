@@ -64,18 +64,18 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         setModelAnswer(answer);
 
         const { audio } = await synthesizeSpeech(question.question_text);
-        setAudioBase64(audio);
-
         startCycle(question);
+        // Set audio after state transition to prevent race condition
+        setAudioBase64(audio);
       } else {
         // Default mode: get question from database
         const { question } = await getNextQuestion(newSession.id, 'behavioral', 'medium');
         setQuestionNumber(1);
 
         const { audio } = await synthesizeSpeech(question.question_text);
-        setAudioBase64(audio);
-
+        
         startCycle(question);
+        setAudioBase64(audio);
       }
       
       setHasStarted(true);
@@ -152,13 +152,11 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
 
   // Auto-transitions for Practice mode
   useEffect(() => {
-    if (mode === 'practice' && currentState === 'PAUSE2') {
-      const timer = setTimeout(() => {
-        moveToNextState();
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (mode === 'practice' && currentState === 'ASK') {
+      // After question ends, wait a moment then move to LISTEN state
+      // The transition will be handled by handleAudioEnded
     }
-  }, [currentState, moveToNextState, mode]);
+  }, [currentState, mode]);
 
   // Auto-transitions for Train mode
   useEffect(() => {
@@ -177,8 +175,8 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
             setModelAnswer(answer);
             
             const { audio } = await synthesizeSpeech(answer);
-            setAudioBase64(audio);
             moveToNextState(); // Move to MODEL_ANSWER
+            setAudioBase64(audio);
           } catch (err) {
             setError('Failed to generate model answer');
           }
@@ -196,9 +194,16 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
           setSentences(sentenceArray);
           setCurrentSentenceIndex(0);
           
+          // Clear any previous audio before transitioning
+          setAudioBase64('');
+          
           // Start playing first sentence
           moveToNextState(); // Move to REPEAT_ANSWER
-          playNextSentence(sentenceArray, 0);
+          
+          // Small delay to ensure state transition completes before setting new audio
+          setTimeout(() => {
+            playNextSentence(sentenceArray, 0);
+          }, 100);
         }, 2000);
         return () => clearTimeout(timer);
       }
@@ -217,18 +222,8 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
     if (mode === 'practice') {
       // Practice mode audio handling
       if (currentState === 'ASK') {
-        setTimeout(() => {
-          if (!currentQuestion) return;
-          const repeatText = `Now, repeat after me: ${currentQuestion.question_text}`;
-          synthesizeSpeech(repeatText).then(({ audio }) => {
-            setAudioBase64(audio);
-            moveToNextState();
-          });
-        }, 3000);
-      } else if (currentState === 'REPEAT') {
-        setTimeout(() => {
-          moveToNextState();
-        }, 2000);
+        // After question plays, move directly to LISTEN (recording) state
+        moveToNextState();
       } else if (currentState === 'FEEDBACK') {
         moveToNextState();
       }
@@ -282,9 +277,10 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         : evaluation.feedback_text;
 
       const { audio } = await synthesizeSpeech(feedbackText);
-      setAudioBase64(audio);
-
+      
       updateState('FEEDBACK');
+      // Set audio after state transition to prevent race condition
+      setAudioBase64(audio);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to process recording';
       setError(`Evaluation error: ${errorMessage}. Continuing with manual feedback.`);
@@ -312,12 +308,12 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
       
       try {
         const { audio } = await synthesizeSpeech(fallbackEvaluation.feedback_text);
+        updateState('FEEDBACK');
         setAudioBase64(audio);
       } catch (ttsErr) {
         console.error('TTS also failed:', ttsErr);
+        updateState('FEEDBACK');
       }
-      
-      updateState('FEEDBACK');
     } finally {
       setIsLoading(false);
     }
@@ -360,18 +356,18 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         setModelAnswer(answer);
 
         const { audio } = await synthesizeSpeech(question.question_text);
-        setAudioBase64(audio);
-
+        
         startCycle(question);
+        setAudioBase64(audio);
       } else {
         // Default mode
         const { question } = await getNextQuestion(session.id, 'behavioral', 'medium');
         setQuestionNumber(prev => prev + 1);
 
         const { audio } = await synthesizeSpeech(question.question_text);
-        setAudioBase64(audio);
-
+        
         startCycle(question);
+        setAudioBase64(audio);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load next question');

@@ -63,16 +63,9 @@ export function usePimsleurCycle({
           break;
       }
     } else {
-      // Practice mode: ASK → PAUSE1 → REPEAT → PAUSE2 → LISTEN → EVALUATE → FEEDBACK → NEXT
+      // Practice mode: ASK → LISTEN → EVALUATE → FEEDBACK → NEXT
       switch (currentState) {
         case 'ASK':
-          updateState('PAUSE1');
-          setTimeout(() => updateState('REPEAT'), pauseDuration);
-          break;
-        case 'REPEAT':
-          updateState('PAUSE2');
-          break;
-        case 'PAUSE2':
           updateState('LISTEN');
           break;
         case 'LISTEN':

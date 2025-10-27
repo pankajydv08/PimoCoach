@@ -20,9 +20,29 @@ export function AudioPlayer({
   const playPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    if (!audioBase64 || !audioRef.current) return;
-
     const audio = audioRef.current;
+    if (!audio) return;
+
+    // If no audio data, stop any current playback
+    if (!audioBase64) {
+      if (playPromiseRef.current) {
+        playPromiseRef.current.then(() => {
+          if (!audio.paused) {
+            audio.pause();
+          }
+          audio.currentTime = 0;
+          audio.src = '';
+        }).catch(() => {
+          // Ignore errors
+        });
+        playPromiseRef.current = null;
+      } else if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = '';
+      }
+      return;
+    }
     
     // Stop any ongoing playback before loading new audio
     const stopCurrentPlayback = async () => {
