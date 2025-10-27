@@ -285,9 +285,6 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           </div>
 
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-muted">Loading sessions...</p>
             <div className="p-6">
               <SessionHistorySkeleton />
             </div>
@@ -349,7 +346,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
                         </div>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-muted" />
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
                 </button>
               ))}

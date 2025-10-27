@@ -21,7 +21,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     services: {
-      supabase: !!process.env.VITE_SUPABASE_URL,
+      supabase: !!(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL),
       github_models: !!process.env.GITHUB_TOKEN,
       assemblyai: !!process.env.ASSEMBLYAI_API_KEY,
       google_cloud_tts: !!process.env.GOOGLE_APPLICATION_CREDENTIALS
