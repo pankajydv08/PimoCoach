@@ -14,11 +14,19 @@ import {
   getCustomQA,
   completeSession
 } from '../services/api';
-import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen, Filter } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, GraduationCap, Target, Sparkles, BookOpen, Filter, Trophy, Star, TrendingUp, X } from 'lucide-react';
 
 interface InterviewPracticeProps {
   initialMode?: InterviewMode;
   onExit?: () => void;
+}
+
+interface SessionSummary {
+  questionsAnswered: number;
+  avgClarity: number;
+  avgConfidence: number;
+  avgAccuracy: number;
+  totalScore: number;
 }
 
 export function InterviewPractice({ initialMode = 'practice' }: InterviewPracticeProps) {
@@ -39,6 +47,9 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
   const [modelAnswer, setModelAnswer] = useState<string>('');
   const [sentences, setSentences] = useState<string[]>([]);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
+  const [allEvaluations, setAllEvaluations] = useState<Evaluation[]>([]);
 
   const {
     currentState,
@@ -66,8 +77,8 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         setModelAnswer(answer);
 
         const { audio } = await synthesizeSpeech(question.question_text);
-        
         startCycle(question);
+        // Set audio after state transition to prevent race condition
         setAudioBase64(audio);
       } else {
         // Default mode: get question from database
@@ -274,6 +285,9 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
 
       setCurrentEvaluation(evaluation);
 
+      // Store evaluation for session summary
+      setAllEvaluations(prev => [...prev, evaluation]);
+
       const feedbackText = mode === 'train'
         ? `Great job practicing! ${evaluation.feedback_text}`
         : evaluation.feedback_text;
@@ -281,6 +295,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
       const { audio } = await synthesizeSpeech(feedbackText);
       
       updateState('FEEDBACK');
+      // Set audio after state transition to prevent race condition
       setAudioBase64(audio);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to process recording';
@@ -326,17 +341,58 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
     try {
       setIsLoading(true);
       console.log('Completing session:', session.id);
+      
+      // Calculate session summary from all evaluations
+      // Calculate session summary from all evaluations
+      let claritySum = 0;
+      let confidenceSum = 0;
+      let accuracySum = 0;
+
+      allEvaluations.forEach(e => {
+        claritySum += e.clarity_score;
+        confidenceSum += e.confidence_score;
+        accuracySum += e.technical_accuracy;
+      });
+
+      const summary: SessionSummary = {
+        questionsAnswered: questionNumber,
+        avgClarity: allEvaluations.length > 0 ? claritySum / allEvaluations.length : 0,
+        avgConfidence: allEvaluations.length > 0 ? confidenceSum / allEvaluations.length : 0,
+        avgAccuracy: allEvaluations.length > 0 ? accuracySum / allEvaluations.length : 0,
+        totalScore: 0 // Will be calculated
+      };
+        totalScore: 0 // Will be calculated
+      };
+      
+      // Calculate overall score (average of all metrics)
+      summary.totalScore = (summary.avgClarity + summary.avgConfidence + summary.avgAccuracy) / 3;
+      
+      setSessionSummary(summary);
+      
+      // Save session to backend
       await completeSession(session.id);
       console.log('Session completed successfully');
       
-      // Navigate back to dashboard
-      window.location.href = '/';
+      // Show completion modal instead of navigating away
+      setShowCompletionModal(true);
+      setIsLoading(false);
     } catch (err) {
       console.error('Failed to complete session:', err);
       setError(err instanceof Error ? err.message : 'Failed to complete session');
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, questionNumber, allEvaluations]);
+
+  const handleContinueSession = useCallback(() => {
+    // Close modal and allow user to continue with more questions
+    setShowCompletionModal(false);
+    setSessionSummary(null);
+  }, []);
+
+  const handleReturnToDashboard = useCallback(() => {
+    // Navigate back to dashboard
+    window.location.href = '/';
+  }, []);
 
   const handleNextQuestion = useCallback(async () => {
     if (!session) return;
@@ -808,6 +864,172 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
           </>
         )}
       </div>
+
+      {/* Session Completion Modal */}
+      {showCompletionModal && sessionSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-6 border-b border-muted bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+              <div className="text-center">
+                {/* Celebration Animation for Good Performance */}
+                {sessionSummary.totalScore >= 75 && (
+                  <div className="mb-4 animate-bounce">
+                    <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-2" />
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className="w-6 h-6 text-yellow-400 animate-pulse" />
+                      <Star className="w-6 h-6 text-yellow-400 animate-pulse delay-75" />
+                      <Star className="w-6 h-6 text-yellow-400 animate-pulse delay-150" />
+                    </div>
+                  </div>
+                )}
+                
+                {sessionSummary.totalScore >= 75 ? (
+                  <>
+                    <h2 className="text-3xl font-bold text-primary mb-2">Outstanding Performance! 🎉</h2>
+                    <p className="text-muted">You crushed this session!</p>
+                  </>
+                ) : sessionSummary.totalScore >= 60 ? (
+                  <>
+                    <h2 className="text-3xl font-bold text-primary mb-2">Great Job! 👏</h2>
+                    <p className="text-muted">You're making solid progress!</p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-3xl font-bold text-primary mb-2">Session Complete! ✓</h2>
+                    <p className="text-muted">Keep practicing to improve!</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Body - Session Summary */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {/* Overall Score Card */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 text-center border-2 border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-medium text-muted mb-2">Overall Score</p>
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="text-5xl font-bold text-primary">
+                      {Math.round(sessionSummary.totalScore)}
+                    </div>
+                    <div className="text-left">
+                      <div className="text-2xl font-bold text-muted">/100</div>
+                      {sessionSummary.totalScore >= 75 && (
+                        <div className="text-xs text-green-600 font-semibold">Excellent!</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Questions Answered */}
+                <div className="bg-card rounded-lg p-4 border border-muted">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted">Questions Answered</p>
+                        <p className="text-2xl font-bold text-primary">{sessionSummary.questionsAnswered}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score Breakdown */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Performance Breakdown
+                  </h3>
+                  
+                  {/* Clarity Score */}
+                  <div className="bg-card rounded-lg p-4 border border-muted">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-primary">Clarity</span>
+                      <span className="text-lg font-bold text-primary">{Math.round(sessionSummary.avgClarity)}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${sessionSummary.avgClarity}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Confidence Score */}
+                  <div className="bg-card rounded-lg p-4 border border-muted">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-primary">Confidence</span>
+                      <span className="text-lg font-bold text-primary">{Math.round(sessionSummary.avgConfidence)}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${sessionSummary.avgConfidence}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Accuracy Score */}
+                  <div className="bg-card rounded-lg p-4 border border-muted">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-primary">Technical Accuracy</span>
+                      <span className="text-lg font-bold text-primary">{Math.round(sessionSummary.avgAccuracy)}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${sessionSummary.avgAccuracy}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Motivational Message */}
+                {sessionSummary.totalScore >= 75 ? (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <p className="text-sm text-green-800 dark:text-green-200">
+                      <strong>Amazing work!</strong> You're demonstrating excellent interview skills. Keep up this momentum!
+                    </p>
+                  </div>
+                ) : sessionSummary.totalScore >= 60 ? (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      <strong>You're on the right track!</strong> Continue practicing to refine your skills further.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                      <strong>Keep going!</strong> Every practice session helps you improve. Consider reviewing the feedback and trying again.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer - Action Buttons */}
+            <div className="px-6 py-4 border-t border-muted bg-gray-50 dark:bg-gray-900/20 flex items-center justify-between gap-4">
+              <button
+                onClick={handleContinueSession}
+                className="flex-1 px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                Continue Practicing
+              </button>
+              <button
+                onClick={handleReturnToDashboard}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
