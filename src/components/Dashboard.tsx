@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import ChartWrapper from './ChartWrapper';
+import Goals from './Goals';
+import { exportSessionToCSV } from '../utils/export';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserSessionHistory, getSessionResponses } from '../services/api';
-import {
-  StatsSkeleton,
-  SessionHistorySkeleton
-} from './Skeleton';
+import { StatsSkeleton, SessionHistorySkeleton } from './Skeleton';
 import { 
   Calendar, 
   TrendingUp, 
@@ -68,23 +68,24 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
     recentSessions: 0
   });
 
+  const [compareA, setCompareA] = useState<string | null>(null);
+  const [compareB, setCompareB] = useState<string | null>(null);
+  const [showClarity, setShowClarity] = useState(true);
+  const [showConfidence, setShowConfidence] = useState(true);
+  const [timeframe, setTimeframe] = useState<'all' | '30' | '7'>('all');
+  const [showGoalsDrawer, setShowGoalsDrawer] = useState(false);
+
   useEffect(() => {
     fetchSessionHistory();
   }, []);
 
   const fetchSessionHistory = async () => {
     try {
-      console.log('Fetching session history...');
       const data = await getUserSessionHistory();
-      console.log('Session history data:', data);
       const sessionsList = data.sessions || [];
-      console.log('Sessions list:', sessionsList);
-      
       setSessions(sessionsList);
-      
-      // Calculate stats
+
       const completed = sessionsList.filter((s: SessionSummary) => s.status === 'completed');
-      console.log('Completed sessions:', completed);
       const recentSessions = sessionsList.filter((s: SessionSummary) => {
         const sessionDate = new Date(s.created_at);
         const weekAgo = new Date();
@@ -95,8 +96,8 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
       const calculatedStats = {
         totalSessions: completed.length,
         totalQuestions: completed.reduce((sum: number, s: SessionSummary) => sum + (s.total_questions || 0), 0),
-        avgClarity: completed.length > 0 
-          ? completed.reduce((sum: number, s: SessionSummary) => sum + (s.avg_clarity_score || 0), 0) / completed.length 
+        avgClarity: completed.length > 0
+          ? completed.reduce((sum: number, s: SessionSummary) => sum + (s.avg_clarity_score || 0), 0) / completed.length
           : 0,
         avgConfidence: completed.length > 0
           ? completed.reduce((sum: number, s: SessionSummary) => sum + (s.avg_confidence_score || 0), 0) / completed.length
@@ -104,9 +105,7 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
         recentSessions: recentSessions.length
       };
 
-      console.log('Calculated stats:', calculatedStats);
       setStats(calculatedStats);
-
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch session history:', error);
@@ -123,7 +122,6 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
-    
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
@@ -150,6 +148,73 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
     setSelectedSession(null);
     setSessionResponses([]);
   };
+
+  const completedSessions = useMemo(() =>
+    sessions
+      .filter((s: SessionSummary) => s.status === 'completed')
+      .sort((a: SessionSummary, b: SessionSummary) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  , [sessions]);
+
+  const filteredSessions = useMemo(() => {
+    if (timeframe === 'all') return completedSessions;
+    const days = Number(timeframe);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return completedSessions.filter(s => new Date(s.created_at) >= cutoff);
+  }, [completedSessions, timeframe]);
+
+  const labels = filteredSessions.map((s: SessionSummary) => new Date(s.created_at).toLocaleDateString());
+  const clarityData = filteredSessions.map((s: SessionSummary) => Math.round(s.avg_clarity_score || 0));
+  const confidenceData = filteredSessions.map((s: SessionSummary) => Math.round(s.avg_confidence_score || 0));
+
+  const latestClarity = clarityData.length ? clarityData[clarityData.length - 1] : null;
+  const prevClarity = clarityData.length > 1 ? clarityData[clarityData.length - 2] : null;
+  const clarityDelta = latestClarity !== null && prevClarity !== null ? latestClarity - prevClarity : null;
+
+  const latestConfidence = confidenceData.length ? confidenceData[confidenceData.length - 1] : null;
+  const prevConfidence = confidenceData.length > 1 ? confidenceData[confidenceData.length - 2] : null;
+  const confidenceDelta = latestConfidence !== null && prevConfidence !== null ? latestConfidence - prevConfidence : null;
+
+  const chartData = useMemo(() => {
+    const datasets: any[] = [];
+    if (showClarity) {
+      datasets.push({
+        label: 'Avg Clarity',
+        data: clarityData,
+        borderColor: 'rgba(59,130,246,1)',
+        backgroundColor: (ctx: any) => {
+          const chart = ctx.chart;
+          const gradient = chart.ctx.createLinearGradient(0, 0, 0, chart.height);
+          gradient.addColorStop(0, 'rgba(59,130,246,0.18)');
+          gradient.addColorStop(1, 'rgba(59,130,246,0.02)');
+          return gradient;
+        },
+        tension: 0.35,
+        fill: true,
+        pointRadius: 3
+      });
+    }
+    if (showConfidence) {
+      datasets.push({
+        label: 'Avg Confidence',
+        data: confidenceData,
+        borderColor: 'rgba(139,92,246,1)',
+        backgroundColor: (ctx: any) => {
+          const chart = ctx.chart;
+          const gradient = chart.ctx.createLinearGradient(0, 0, 0, chart.height);
+          gradient.addColorStop(0, 'rgba(139,92,246,0.12)');
+          gradient.addColorStop(1, 'rgba(139,92,246,0.02)');
+          return gradient;
+        },
+        tension: 0.35,
+        fill: true,
+        pointRadius: 3
+      });
+    }
+
+    return { labels, datasets };
+  }, [labels, clarityData, confidenceData, showClarity, showConfidence]);
+
 
   return (
     <div className="min-h-screen bg-app p-6">
@@ -303,26 +368,24 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--muted)' }}>
               {sessions.slice(0, 5).map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => handleViewSession(session)}
-                  className="w-full p-6 hover:bg-opacity-5 transition-colors text-left"
-                >
+                <div key={session.id} className="w-full p-6 hover:bg-opacity-5 transition-colors text-left">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                        <div className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold text-sm">
                           {session.session_type}
-                        </span>
-                        <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
+                        </div>
+                        <div className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm">
                           {session.difficulty_level}
-                        </span>
+                        </div>
                         {session.status === 'completed' ? (
-                          <Trophy className="w-4 h-4 text-yellow-500" />
+                          <div className="mt-2 sm:mt-0 sm:ml-auto flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-yellow-500" />
+                          </div>
                         ) : (
-                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">
+                          <div className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium mt-2 sm:mt-0">
                             In Progress
-                          </span>
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
@@ -346,9 +409,16 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
                         </div>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <div className="ml-4 flex items-center">
+                      <button
+                        onClick={() => handleViewSession(session)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
+                      >
+                        View
+                      </button>
+                    </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -356,37 +426,184 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
 
         {/* Performance Insights (if there are sessions) */}
         {sessions.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Progress Chart */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <BarChart3 className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-bold text-gray-900">Performance Trend</h3>
-              </div>
-              <div className="text-center py-12 text-gray-500">
-                <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Chart visualization coming soon</p>
+          <>
+            <div className="mt-8">
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <BarChart3 className="w-5 h-5 text-gray-600" />
+                  <h3 className="text-lg font-bold text-gray-900">Performance Trend</h3>
+
+                  <div className="ml-4 flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <label className="text-xs">Show</label>
+                      <button
+                        onClick={() => setShowClarity(s => !s)}
+                        className={`px-2 py-1 rounded ${showClarity ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                        Clarity
+                      </button>
+                      <button
+                        onClick={() => setShowConfidence(s => !s)}
+                        className={`px-2 py-1 rounded ${showConfidence ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                        Confidence
+                      </button>
+                    </div>
+
+                    <div className="ml-3 flex items-center gap-2">
+                      <select
+                        value={timeframe}
+                        onChange={(e) => setTimeframe(e.target.value as any)}
+                        className="border rounded-md p-2 text-sm"
+                      >
+                        <option value="7">7 days</option>
+                        <option value="30">30 days</option>
+                        <option value="all">All</option>
+                      </select>
+                    </div>
+
+                  </div>
+
+                  <div className="ml-auto flex items-center gap-3">
+                    <select
+                      className="border rounded-md p-2 text-sm"
+                      value={compareA || ''}
+                      onChange={(e) => setCompareA(e.target.value || null)}
+                    >
+                      <option value="">Compare A</option>
+                      {sessions.map((s) => (
+                        <option key={s.id} value={s.id}>{new Date(s.created_at).toLocaleDateString()} • {s.session_type}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="border rounded-md p-2 text-sm"
+                      value={compareB || ''}
+                      onChange={(e) => setCompareB(e.target.value || null)}
+                    >
+                      <option value="">Compare B</option>
+                      {sessions.map((s) => (
+                        <option key={s.id} value={s.id}>{new Date(s.created_at).toLocaleDateString()} • {s.session_type}</option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={() => setShowGoalsDrawer(true)}
+                      className="ml-2 px-3 py-1 bg-white border rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Goals
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  {labels.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="bg-card rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Latest Clarity</div>
+                          <div className="text-2xl font-bold text-blue-700">{latestClarity ?? '--'}%</div>
+                          {clarityDelta !== null && (
+                            <div className={`text-sm ${clarityDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {clarityDelta >= 0 ? `+${clarityDelta}%` : `${clarityDelta}%`} vs prev
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="bg-card rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Latest Confidence</div>
+                          <div className="text-2xl font-bold text-purple-700">{latestConfidence ?? '--'}%</div>
+                          {confidenceDelta !== null && (
+                            <div className={`text-sm ${confidenceDelta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {confidenceDelta >= 0 ? `+${confidenceDelta}%` : `${confidenceDelta}%`} vs prev
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Chart matching container width */}
+                      <div className="bg-white rounded-lg p-3">
+                        <ChartWrapper data={chartData as any} height={360} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No completed sessions yet to show trends</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Comparison area shown below chart */}
+                <div className="mt-6">
+                  {compareA && compareB && compareA !== compareB && (() => {
+                    const a = sessions.find(s => s.id === compareA);
+                    const b = sessions.find(s => s.id === compareB);
+                    if (!a || !b) return null;
+                    const diffClarity = Math.round((a.avg_clarity_score || 0) - (b.avg_clarity_score || 0));
+                    const diffConfidence = Math.round((a.avg_confidence_score || 0) - (b.avg_confidence_score || 0));
+                    return (
+                      <div className="bg-gray-50 rounded-xl p-4 border">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Session Comparison</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <div className="text-xs text-gray-500">A • {new Date(a.created_at).toLocaleDateString()}</div>
+                            <div className="font-bold">Clarity: {Math.round(a.avg_clarity_score || 0)}%</div>
+                            <div className="font-bold">Confidence: {Math.round(a.avg_confidence_score || 0)}%</div>
+                            <div className="text-gray-600">Questions: {a.total_questions}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500">B • {new Date(b.created_at).toLocaleDateString()}</div>
+                            <div className="font-bold">Clarity: {Math.round(b.avg_clarity_score || 0)}%</div>
+                            <div className="font-bold">Confidence: {Math.round(b.avg_confidence_score || 0)}%</div>
+                            <div className="text-gray-600">Questions: {b.total_questions}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 text-sm">
+                          <div>Clarity difference: <span className={`${diffClarity >= 0 ? 'text-green-600' : 'text-red-600'}`}>{diffClarity >= 0 ? `+${diffClarity}` : diffClarity}%</span></div>
+                          <div>Confidence difference: <span className={`${diffConfidence >= 0 ? 'text-green-600' : 'text-red-600'}`}>{diffConfidence >= 0 ? `+${diffConfidence}` : diffConfidence}%</span></div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Zap className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
-              </div>
-              <div className="space-y-3">
-                <p className="text-gray-600 text-sm">
-                  {stats.recentSessions > 0 
-                    ? `You completed ${stats.recentSessions} session${stats.recentSessions > 1 ? 's' : ''} this week!`
-                    : 'No sessions this week. Start practicing to track your progress!'
-                  }
-                </p>
+            <div className="mt-6">
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Zap className="w-5 h-5 text-gray-600" />
+                  <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-gray-600 text-sm">
+                    {stats.recentSessions > 0 
+                      ? `You completed ${stats.recentSessions} session${stats.recentSessions > 1 ? 's' : ''} this week!`
+                      : 'No sessions this week. Start practicing to track your progress!'
+                    }
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
+
+      {/* Goals Drawer */}
+      {showGoalsDrawer && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black opacity-50" onClick={() => setShowGoalsDrawer(false)} />
+          <div className="ml-auto w-full max-w-md bg-white shadow-xl p-6 h-full overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Goals</h3>
+              <button onClick={() => setShowGoalsDrawer(false)} className="text-gray-500 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <Goals sessions={completedSessions} />
+          </div>
+        </div>
+      )}
 
       {/* Session Detail Modal */}
       {selectedSession && (
@@ -479,11 +696,20 @@ export function Dashboard({ onStartPractice }: DashboardProps) {
 
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 flex items-center gap-4">
                 {selectedSession.status === 'completed' && (
                   <span>
                     Session completed • {selectedSession.total_questions} questions answered
                   </span>
+                )}
+
+                {sessionResponses.length > 0 && (
+                  <button
+                    onClick={() => exportSessionToCSV(selectedSession, sessionResponses)}
+                    className="px-4 py-2 bg-white border rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Export CSV
+                  </button>
                 )}
               </div>
               <button
