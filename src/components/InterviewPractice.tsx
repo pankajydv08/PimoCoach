@@ -64,8 +64,8 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
         setModelAnswer(answer);
 
         const { audio } = await synthesizeSpeech(question.question_text);
-        
         startCycle(question);
+        // Set audio after state transition to prevent race condition
         setAudioBase64(audio);
       } else {
         // Default mode: get question from database
