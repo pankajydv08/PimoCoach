@@ -341,17 +341,24 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
       console.log('Completing session:', session.id);
       
       // Calculate session summary from all evaluations
+      // Calculate session summary from all evaluations
+      let claritySum = 0;
+      let confidenceSum = 0;
+      let accuracySum = 0;
+
+      allEvaluations.forEach(e => {
+        claritySum += e.clarity_score;
+        confidenceSum += e.confidence_score;
+        accuracySum += e.technical_accuracy;
+      });
+
       const summary: SessionSummary = {
         questionsAnswered: questionNumber,
-        avgClarity: allEvaluations.length > 0 
-          ? allEvaluations.reduce((sum, e) => sum + e.clarity_score, 0) / allEvaluations.length 
-          : 0,
-        avgConfidence: allEvaluations.length > 0
-          ? allEvaluations.reduce((sum, e) => sum + e.confidence_score, 0) / allEvaluations.length
-          : 0,
-        avgAccuracy: allEvaluations.length > 0
-          ? allEvaluations.reduce((sum, e) => sum + e.technical_accuracy, 0) / allEvaluations.length
-          : 0,
+        avgClarity: allEvaluations.length > 0 ? claritySum / allEvaluations.length : 0,
+        avgConfidence: allEvaluations.length > 0 ? confidenceSum / allEvaluations.length : 0,
+        avgAccuracy: allEvaluations.length > 0 ? accuracySum / allEvaluations.length : 0,
+        totalScore: 0 // Will be calculated
+      };
         totalScore: 0 // Will be calculated
       };
       
