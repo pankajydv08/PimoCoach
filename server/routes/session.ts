@@ -1,18 +1,17 @@
 import express from 'express';
 import { supabase } from '../utils/supabase';
-import { InterviewSession } from '../types';
 import { AuthRequest } from '../middleware/auth';
+import { verifyAuthUser } from '../utils/authHelpers';
+import { handleRouteError } from '../utils/errorHandler';
 
 const router = express.Router();
 
 router.post('/start', async (req: AuthRequest, res) => {
   try {
     const { session_type = 'general', difficulty_level = 'medium' } = req.body;
-    const user_id = req.user?.id;
+    const user_id = verifyAuthUser(req, res);
 
-    if (!user_id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+    if (!user_id) return;
 
     const { data, error } = await supabase
       .from('interview_sessions')
@@ -35,19 +34,16 @@ router.post('/start', async (req: AuthRequest, res) => {
 
     res.json({ session: data });
   } catch (error) {
-    console.error('Error in /start:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, '/start');
   }
 });
 
 router.get('/:sessionId', async (req: AuthRequest, res) => {
   try {
     const { sessionId } = req.params;
-    const user_id = req.user?.id;
+    const user_id = verifyAuthUser(req, res);
 
-    if (!user_id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+    if (!user_id) return;
 
     const { data, error } = await supabase
       .from('interview_sessions')
@@ -67,8 +63,7 @@ router.get('/:sessionId', async (req: AuthRequest, res) => {
 
     res.json({ session: data });
   } catch (error) {
-    console.error('Error in GET /:sessionId:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, 'GET /:sessionId');
   }
 });
 
@@ -76,11 +71,9 @@ router.put('/:sessionId', async (req: AuthRequest, res) => {
   try {
     const { sessionId } = req.params;
     const updates = req.body;
-    const user_id = req.user?.id;
+    const user_id = verifyAuthUser(req, res);
 
-    if (!user_id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+    if (!user_id) return;
 
     const { data, error } = await supabase
       .from('interview_sessions')
@@ -97,19 +90,16 @@ router.put('/:sessionId', async (req: AuthRequest, res) => {
 
     res.json({ session: data });
   } catch (error) {
-    console.error('Error in PUT /:sessionId:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, 'PUT /:sessionId');
   }
 });
 
 router.post('/:sessionId/complete', async (req: AuthRequest, res) => {
   try {
     const { sessionId } = req.params;
-    const user_id = req.user?.id;
+    const user_id = verifyAuthUser(req, res);
 
-    if (!user_id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+    if (!user_id) return;
 
     const { data: responses, error: responsesError } = await supabase
       .from('user_responses')
@@ -150,19 +140,16 @@ router.post('/:sessionId/complete', async (req: AuthRequest, res) => {
 
     res.json({ session: data });
   } catch (error) {
-    console.error('Error in /complete:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, '/complete');
   }
 });
 
 router.get('/:sessionId/responses', async (req: AuthRequest, res) => {
   try {
     const { sessionId } = req.params;
-    const user_id = req.user?.id;
+    const user_id = verifyAuthUser(req, res);
 
-    if (!user_id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+    if (!user_id) return;
 
     const { data, error } = await supabase
       .from('user_responses')
@@ -185,19 +172,16 @@ router.get('/:sessionId/responses', async (req: AuthRequest, res) => {
 
     res.json({ responses: data || [] });
   } catch (error) {
-    console.error('Error in GET /:sessionId/responses:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, 'GET /:sessionId/responses');
   }
 });
 
 // Get all sessions for the authenticated user
 router.get('/user/history', async (req: AuthRequest, res) => {
   try {
-    const user_id = req.user?.id;
+    const user_id = verifyAuthUser(req, res);
 
-    if (!user_id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+    if (!user_id) return;
 
     const { data, error } = await supabase
       .from('interview_sessions')
@@ -212,8 +196,7 @@ router.get('/user/history', async (req: AuthRequest, res) => {
 
     res.json({ sessions: data || [] });
   } catch (error) {
-    console.error('Error in GET /user/history:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, 'GET /user/history');
   }
 });
 

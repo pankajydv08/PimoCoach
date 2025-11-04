@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { transcribeAudioBuffer } from '../utils/assemblyAI';
+import { sendErrorResponse, handleRouteError } from '../utils/errorHandler';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const upload = multer({
 router.post('/transcribe', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Audio file is required' });
+      return sendErrorResponse(res, 400, 'Audio file is required');
     }
 
     console.log('🎤 Received audio for AssemblyAI transcription');
@@ -30,10 +31,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error in AssemblyAI /transcribe:', error);
-    res.status(500).json({
-      error: 'AssemblyAI STT service unavailable',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    handleRouteError(res, error, 'AssemblyAI /transcribe');
   }
 });
 

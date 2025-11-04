@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../utils/supabase';
 import { generateQuestion, generateModelAnswer, generateCustomQA } from '../utils/azureGPT';
+import { handleRouteError, sendErrorResponse } from '../utils/errorHandler';
 
 const router = express.Router();
 
@@ -68,8 +69,7 @@ router.post('/next', async (req, res) => {
 
     res.json({ question });
   } catch (error) {
-    console.error('Error in /next:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, '/next');
   }
 });
 
@@ -78,15 +78,14 @@ router.post('/model-answer', async (req, res) => {
     const { questionText, category = 'behavioral', difficulty = 'medium' } = req.body;
 
     if (!questionText) {
-      return res.status(400).json({ error: 'Question text is required' });
+      return sendErrorResponse(res, 400, 'Question text is required');
     }
 
     const modelAnswer = await generateModelAnswer(questionText, category, difficulty);
 
     res.json({ modelAnswer });
   } catch (error) {
-    console.error('Error in /model-answer:', error);
-    res.status(500).json({ error: 'Failed to generate model answer' });
+    handleRouteError(res, error, '/model-answer');
   }
 });
 
@@ -95,7 +94,7 @@ router.post('/custom-qa', async (req, res) => {
     const { jobDescription, sessionId } = req.body;
 
     if (!jobDescription) {
-      return res.status(400).json({ error: 'Job description is required' });
+      return sendErrorResponse(res, 400, 'Job description is required');
     }
 
     // Get previously asked questions for this session
@@ -133,8 +132,7 @@ router.post('/custom-qa', async (req, res) => {
       modelAnswer: answer 
     });
   } catch (error) {
-    console.error('Error in /custom-qa:', error);
-    res.status(500).json({ error: 'Failed to generate custom Q&A' });
+    handleRouteError(res, error, '/custom-qa');
   }
 });
 
@@ -159,8 +157,7 @@ router.get('/:questionId', async (req, res) => {
 
     res.json({ question: data });
   } catch (error) {
-    console.error('Error in GET /:questionId:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, 'GET /:questionId');
   }
 });
 
