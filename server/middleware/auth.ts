@@ -24,47 +24,71 @@ export interface AuthRequest extends Request {
   };
 }
 
+/**
+ * Extract and parse Bearer token from authorization header
+ */
+function extractBearerToken(authHeader: string | undefined): string | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  return authHeader.substring(7); // Remove 'Bearer ' prefix
+}
+
+/**
+ * Decode JWT payload without verification (development mode only)
+ */
+function decodeJWTPayload(token: string): any {
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+  return {
+    id: payload.sub,
+    email: payload.email,
+    ...payload
+  };
+}
+
+/**
+ * Verify token and get user information
+ */
+async function verifyToken(token: string): Promise<{ id: string; email: string; [key: string]: any } | null> {
+  if (!supabaseAdmin) {
+    // Development mode - decode without verification
+    console.warn('⚠️  Running without token verification - development mode only!');
+    return decodeJWTPayload(token);
+  }
+
+  // Verify the token using Supabase admin client
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    email: user.email || '',
+    ...user.user_metadata
+  };
+}
+
 export async function authMiddleware(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractBearerToken(req.headers.authorization);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const user = await verifyToken(token);
 
-    if (!supabaseAdmin) {
-      // If no service role key, just decode the JWT without verification (development mode)
-      // In production, you MUST set SUPABASE_SERVICE_ROLE_KEY
-      console.warn('⚠️  Running without token verification - development mode only!');
-      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-      req.user = {
-        id: payload.sub,
-        email: payload.email,
-        ...payload
-      };
-      return next();
-    }
-
-    // Verify the token using Supabase admin client
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-
-    if (error || !user) {
+    if (!user) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Attach user to request object
-    req.user = {
-      id: user.id,
-      email: user.email || '',
-      ...user.user_metadata
-    };
-
+    req.user = user;
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
@@ -79,23 +103,12 @@ export async function optionalAuth(
   next: NextFunction
 ) {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractBearerToken(req.headers.authorization);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next();
-    }
-
-    const token = authHeader.substring(7);
-
-    if (supabaseAdmin) {
-      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-      
+    if (token) {
+      const user = await verifyToken(token);
       if (user) {
-        req.user = {
-          id: user.id,
-          email: user.email || '',
-          ...user.user_metadata
-        };
+        req.user = user;
       }
     }
 

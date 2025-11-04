@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../utils/supabase';
 import { generateQuestion, generateModelAnswer, generateCustomQA } from '../utils/azureGPT';
 import { handleRouteError, sendErrorResponse } from '../utils/errorHandler';
+import { getPreviousQuestions } from '../utils/questionHelpers';
 
 const router = express.Router();
 
@@ -9,18 +10,7 @@ router.post('/next', async (req, res) => {
   try {
     const { sessionId, category = 'behavioral', difficulty = 'medium' } = req.body;
 
-    const { data: existingResponses, error: responsesError } = await supabase
-      .from('user_responses')
-      .select('interview_questions(question_text)')
-      .eq('session_id', sessionId);
-
-    if (responsesError) {
-      console.error('Error fetching existing responses:', responsesError);
-    }
-
-    const previousQuestions = existingResponses?.map(
-      r => (r as any).interview_questions?.question_text
-    ).filter(Boolean) || [];
+    const previousQuestions = await getPreviousQuestions(sessionId);
 
     const { data: availableQuestions, error: questionsError } = await supabase
       .from('interview_questions')
@@ -98,14 +88,7 @@ router.post('/custom-qa', async (req, res) => {
     }
 
     // Get previously asked questions for this session
-    const { data: existingResponses } = await supabase
-      .from('user_responses')
-      .select('interview_questions(question_text)')
-      .eq('session_id', sessionId || '');
-
-    const previousQuestions = existingResponses?.map(
-      r => (r as any).interview_questions?.question_text
-    ).filter(Boolean) || [];
+    const previousQuestions = await getPreviousQuestions(sessionId || '');
 
     const { question, answer } = await generateCustomQA(jobDescription, previousQuestions);
 

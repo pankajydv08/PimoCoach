@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 import { AuthRequest } from '../middleware/auth';
 import { verifyAuthUser } from '../utils/authHelpers';
 import { handleRouteError } from '../utils/errorHandler';
+import { calculateSessionAverages } from '../utils/questionHelpers';
 
 const router = express.Router();
 
@@ -101,23 +102,7 @@ router.post('/:sessionId/complete', async (req: AuthRequest, res) => {
 
     if (!user_id) return;
 
-    const { data: responses, error: responsesError } = await supabase
-      .from('user_responses')
-      .select('clarity_score, confidence_score')
-      .eq('session_id', sessionId);
-
-    if (responsesError) {
-      console.error('Error fetching responses:', responsesError);
-      return res.status(500).json({ error: 'Failed to calculate averages' });
-    }
-
-    let avgClarity = 0;
-    let avgConfidence = 0;
-
-    if (responses && responses.length > 0) {
-      avgClarity = responses.reduce((sum, r) => sum + (r.clarity_score || 0), 0) / responses.length;
-      avgConfidence = responses.reduce((sum, r) => sum + (r.confidence_score || 0), 0) / responses.length;
-    }
+    const { avgClarity, avgConfidence, totalQuestions } = await calculateSessionAverages(sessionId);
 
     const { data, error } = await supabase
       .from('interview_sessions')
@@ -126,7 +111,7 @@ router.post('/:sessionId/complete', async (req: AuthRequest, res) => {
         completed_at: new Date().toISOString(),
         avg_clarity_score: avgClarity,
         avg_confidence_score: avgConfidence,
-        total_questions: responses?.length || 0
+        total_questions: totalQuestions
       })
       .eq('id', sessionId)
       .eq('user_id', user_id)
