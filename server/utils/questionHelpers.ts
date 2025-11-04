@@ -6,6 +6,33 @@ interface SessionAverages {
   totalQuestions: number;
 }
 
+interface UserResponseWithQuestion {
+  interview_questions?: {
+    question_text?: string;
+  } | null;
+}
+
+interface UserResponseScores {
+  clarity_score?: number;
+  confidence_score?: number;
+}
+
+/**
+ * Calculate average of a numeric field from an array of objects
+ */
+function calculateAverage<T>(
+  items: T[],
+  fieldAccessor: (item: T) => number | undefined | null,
+  defaultValue: number = 0
+): number {
+  if (!items || items.length === 0) {
+    return defaultValue;
+  }
+
+  const sum = items.reduce((acc, item) => acc + (fieldAccessor(item) || 0), 0);
+  return sum / items.length;
+}
+
 /**
  * Get list of previously asked question texts for a session
  */
@@ -20,9 +47,9 @@ export async function getPreviousQuestions(sessionId: string): Promise<string[]>
     return [];
   }
 
-  return existingResponses?.map(
-    (r: any) => r.interview_questions?.question_text
-  ).filter(Boolean) || [];
+  return (existingResponses as UserResponseWithQuestion[])
+    ?.map(r => r.interview_questions?.question_text)
+    .filter((text): text is string => Boolean(text)) || [];
 }
 
 /**
@@ -38,15 +65,17 @@ export async function calculateSessionAverages(sessionId: string): Promise<Sessi
     return { avgClarity: 0, avgConfidence: 0, totalQuestions: 0 };
   }
 
-  const avgClarity = responses.reduce(
-    (sum: number, r: any) => sum + (r.clarity_score || 0), 
-    0
-  ) / responses.length;
+  const typedResponses = responses as UserResponseScores[];
 
-  const avgConfidence = responses.reduce(
-    (sum: number, r: any) => sum + (r.confidence_score || 0), 
-    0
-  ) / responses.length;
+  const avgClarity = calculateAverage(
+    typedResponses,
+    r => r.clarity_score
+  );
+
+  const avgConfidence = calculateAverage(
+    typedResponses,
+    r => r.confidence_score
+  );
 
   return {
     avgClarity,
