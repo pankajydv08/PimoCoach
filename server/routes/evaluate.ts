@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../utils/supabase';
 import { evaluateResponse } from '../utils/azureGPT';
+import { sendErrorResponse, handleRouteError } from '../utils/errorHandler';
 
 const router = express.Router();
 
@@ -26,9 +27,11 @@ router.post('/', async (req, res) => {
 
     if (!sessionId || !questionId || !transcript || !questionText) {
       console.log('❌ Validation failed - missing required fields');
-      return res.status(400).json({
-        error: 'Missing required fields: sessionId, questionId, transcript, questionText'
-      });
+      return sendErrorResponse(
+        res,
+        400,
+        'Missing required fields: sessionId, questionId, transcript, questionText'
+      );
     }
 
     console.log('Evaluating response for question:', questionText);
@@ -84,11 +87,7 @@ router.post('/', async (req, res) => {
       evaluation
     });
   } catch (error) {
-    console.error('Error in /evaluate:', error);
-    res.status(500).json({
-      error: 'Evaluation service unavailable',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    handleRouteError(res, error, '/evaluate');
   }
 });
 

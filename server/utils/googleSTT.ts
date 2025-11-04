@@ -17,6 +17,20 @@ function getClient(): SpeechClient {
   return client;
 }
 
+/**
+ * Create standardized STT configuration
+ */
+function createSTTConfig() {
+  return {
+    encoding: 'WEBM_OPUS' as const,
+    sampleRateHertz: 48000,
+    languageCode: 'en-US',
+    enableAutomaticPunctuation: true,
+    model: 'default',
+    useEnhanced: true
+  };
+}
+
 export async function transcribeAudio(filePath: string): Promise<string> {
   try {
     const client = getClient();
@@ -27,14 +41,7 @@ export async function transcribeAudio(filePath: string): Promise<string> {
       content: audioBytes
     };
 
-    const config = {
-      encoding: 'WEBM_OPUS' as const,
-      sampleRateHertz: 48000,
-      languageCode: 'en-US',
-      enableAutomaticPunctuation: true,
-      model: 'default',
-      useEnhanced: true
-    };
+    const config = createSTTConfig();
 
     const request = {
       audio,
@@ -86,14 +93,7 @@ async function transcribeAudioBufferLongRunning(
 
     // Step 2: Start long-running recognition
     console.log('🎤 Starting long-running recognition...');
-    const config = {
-      encoding: 'WEBM_OPUS' as const,
-      sampleRateHertz: 48000,
-      languageCode: 'en-US',
-      enableAutomaticPunctuation: true,
-      model: 'default',
-      useEnhanced: true
-    };
+    const config = createSTTConfig();
 
     const audio = {
       uri: gcsUri

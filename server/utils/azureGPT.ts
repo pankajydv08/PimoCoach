@@ -34,6 +34,39 @@ When evaluating responses, analyze:
 
 Provide actionable feedback that helps users improve specific aspects of their delivery.`;
 
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+interface ChatCompletionOptions {
+  temperature: number;
+  max_tokens: number;
+  response_format?: { type: 'json_object' };
+}
+
+/**
+ * Create a standardized chat completion request
+ */
+function createChatRequest(
+  client: ReturnType<typeof ModelClient>,
+  prompt: string,
+  options: ChatCompletionOptions
+) {
+  const messages: ChatMessage[] = [
+    { role: 'system', content: INTERVIEWER_SYSTEM_PROMPT },
+    { role: 'user', content: prompt }
+  ];
+
+  return client.path("/chat/completions").post({
+    body: {
+      messages,
+      model,
+      ...options
+    }
+  });
+}
+
 export async function generateQuestion(
   category: string = 'behavioral',
   difficulty: string = 'medium',
@@ -49,16 +82,9 @@ ${previousQuestions.length > 0 ? `- Avoid these already asked questions: ${previ
 
 Return ONLY the question text, nothing else.`;
 
-    const response = await client.path("/chat/completions").post({
-      body: {
-        messages: [
-          { role: 'system', content: INTERVIEWER_SYSTEM_PROMPT },
-          { role: 'user', content: prompt }
-        ],
-        model: model,
-        temperature: 0.8,
-        max_tokens: 150
-      }
+    const response = await createChatRequest(client, prompt, {
+      temperature: 0.8,
+      max_tokens: 150
     });
 
     if (isUnexpected(response)) {
@@ -93,16 +119,9 @@ Create a concise, professional answer (2-3 sentences, about 30-50 words) that de
 
 Return ONLY the model answer text, nothing else.`;
 
-    const response = await client.path("/chat/completions").post({
-      body: {
-        messages: [
-          { role: 'system', content: INTERVIEWER_SYSTEM_PROMPT },
-          { role: 'user', content: prompt }
-        ],
-        model: model,
-        temperature: 0.7,
-        max_tokens: 200
-      }
+    const response = await createChatRequest(client, prompt, {
+      temperature: 0.7,
+      max_tokens: 200
     });
 
     if (isUnexpected(response)) {
@@ -150,17 +169,10 @@ The answer should:
 - Be confident and professional
 - Be natural and conversational`;
 
-    const response = await client.path("/chat/completions").post({
-      body: {
-        messages: [
-          { role: 'system', content: INTERVIEWER_SYSTEM_PROMPT },
-          { role: 'user', content: prompt }
-        ],
-        model: model,
-        temperature: 0.8,
-        max_tokens: 300,
-        response_format: { type: 'json_object' }
-      }
+    const response = await createChatRequest(client, prompt, {
+      temperature: 0.8,
+      max_tokens: 300,
+      response_format: { type: 'json_object' }
     });
 
     if (isUnexpected(response)) {
@@ -214,17 +226,10 @@ Analyze the response and provide a JSON evaluation with these exact fields:
 Be encouraging but honest. Focus on helping them improve their interview skills.`;
 
     console.log('Calling GitHub Models API...');
-    const response = await client.path("/chat/completions").post({
-      body: {
-        messages: [
-          { role: 'system', content: INTERVIEWER_SYSTEM_PROMPT },
-          { role: 'user', content: prompt }
-        ],
-        model: model,
-        temperature: 0.7,
-        max_tokens: 800,
-        response_format: { type: 'json_object' }
-      }
+    const response = await createChatRequest(client, prompt, {
+      temperature: 0.7,
+      max_tokens: 800,
+      response_format: { type: 'json_object' }
     });
 
     console.log('API Response status:', response.status);

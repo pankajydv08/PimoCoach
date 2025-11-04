@@ -1,6 +1,8 @@
 import express from 'express';
 import { supabase } from '../utils/supabase';
 import { generateQuestion, generateModelAnswer, generateCustomQA } from '../utils/azureGPT';
+import { handleRouteError, sendErrorResponse } from '../utils/errorHandler';
+import { getPreviousQuestions } from '../utils/questionHelpers';
 
 const router = express.Router();
 
@@ -8,18 +10,7 @@ router.post('/next', async (req, res) => {
   try {
     const { sessionId, category = 'behavioral', difficulty = 'medium' } = req.body;
 
-    const { data: existingResponses, error: responsesError } = await supabase
-      .from('user_responses')
-      .select('interview_questions(question_text)')
-      .eq('session_id', sessionId);
-
-    if (responsesError) {
-      console.error('Error fetching existing responses:', responsesError);
-    }
-
-    const previousQuestions = existingResponses?.map(
-      r => (r as any).interview_questions?.question_text
-    ).filter(Boolean) || [];
+    const previousQuestions = await getPreviousQuestions(sessionId);
 
     const { data: availableQuestions, error: questionsError } = await supabase
       .from('interview_questions')
@@ -68,8 +59,7 @@ router.post('/next', async (req, res) => {
 
     res.json({ question });
   } catch (error) {
-    console.error('Error in /next:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, '/next');
   }
 });
 
@@ -78,15 +68,14 @@ router.post('/model-answer', async (req, res) => {
     const { questionText, category = 'behavioral', difficulty = 'medium' } = req.body;
 
     if (!questionText) {
-      return res.status(400).json({ error: 'Question text is required' });
+      return sendErrorResponse(res, 400, 'Question text is required');
     }
 
     const modelAnswer = await generateModelAnswer(questionText, category, difficulty);
 
     res.json({ modelAnswer });
   } catch (error) {
-    console.error('Error in /model-answer:', error);
-    res.status(500).json({ error: 'Failed to generate model answer' });
+    handleRouteError(res, error, '/model-answer');
   }
 });
 
@@ -95,18 +84,11 @@ router.post('/custom-qa', async (req, res) => {
     const { jobDescription, sessionId } = req.body;
 
     if (!jobDescription) {
-      return res.status(400).json({ error: 'Job description is required' });
+      return sendErrorResponse(res, 400, 'Job description is required');
     }
 
     // Get previously asked questions for this session
-    const { data: existingResponses } = await supabase
-      .from('user_responses')
-      .select('interview_questions(question_text)')
-      .eq('session_id', sessionId || '');
-
-    const previousQuestions = existingResponses?.map(
-      r => (r as any).interview_questions?.question_text
-    ).filter(Boolean) || [];
+    const previousQuestions = await getPreviousQuestions(sessionId || '');
 
     const { question, answer } = await generateCustomQA(jobDescription, previousQuestions);
 
@@ -133,8 +115,7 @@ router.post('/custom-qa', async (req, res) => {
       modelAnswer: answer 
     });
   } catch (error) {
-    console.error('Error in /custom-qa:', error);
-    res.status(500).json({ error: 'Failed to generate custom Q&A' });
+    handleRouteError(res, error, '/custom-qa');
   }
 });
 
@@ -159,8 +140,7 @@ router.get('/:questionId', async (req, res) => {
 
     res.json({ question: data });
   } catch (error) {
-    console.error('Error in GET /:questionId:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    handleRouteError(res, error, 'GET /:questionId');
   }
 });
 

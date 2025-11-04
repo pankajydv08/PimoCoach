@@ -20,27 +20,33 @@ function getClient(): textToSpeech.TextToSpeechClient {
   return client;
 }
 
+/**
+ * Create standardized TTS request configuration
+ */
+function createTTSRequest(text: string) {
+  return {
+    input: { text },
+    voice: {
+      languageCode: 'en-US',
+      name: 'en-US-Neural2-F',
+      ssmlGender: 'FEMALE' as const
+    },
+    audioConfig: {
+      audioEncoding: 'MP3' as const,
+      speakingRate: 0.95,
+      pitch: 0,
+      volumeGainDb: 0
+    }
+  };
+}
+
 export async function synthesizeSpeech(
   text: string,
   outputPath?: string
 ): Promise<string> {
   try {
     const client = getClient();
-
-    const request = {
-      input: { text },
-      voice: {
-        languageCode: 'en-US',
-        name: 'en-US-Neural2-F',
-        ssmlGender: 'FEMALE' as const
-      },
-      audioConfig: {
-        audioEncoding: 'MP3' as const,
-        speakingRate: 0.95,
-        pitch: 0,
-        volumeGainDb: 0
-      }
-    };
+    const request = createTTSRequest(text);
 
     const [response] = await client.synthesizeSpeech(request);
 
@@ -63,21 +69,7 @@ export async function synthesizeSpeech(
 export async function synthesizeSpeechBase64(text: string): Promise<string> {
   try {
     const client = getClient();
-
-    const request = {
-      input: { text },
-      voice: {
-        languageCode: 'en-US',
-        name: 'en-US-Neural2-F',
-        ssmlGender: 'FEMALE' as const
-      },
-      audioConfig: {
-        audioEncoding: 'MP3' as const,
-        speakingRate: 0.95,
-        pitch: 0,
-        volumeGainDb: 0
-      }
-    };
+    const request = createTTSRequest(text);
 
     const [response] = await client.synthesizeSpeech(request);
 
