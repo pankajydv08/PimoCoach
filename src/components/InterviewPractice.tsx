@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AudioPlayer } from './AudioPlayer';
 import { MicButton } from './MicButton';
 import { usePimsleurCycle } from '../hooks/usePimsleurCycle';
-import { InterviewSession, Evaluation, InterviewMode, TrainMethod, QuestionCategory, DifficultyLevel } from '../types';
+import { InterviewSession, Evaluation, InterviewMode, TrainMethod, QuestionCategory, DifficultyLevel, JobAnalysis } from '../types';
 import {
   startSession,
   getNextQuestion,
@@ -50,7 +50,7 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [allEvaluations, setAllEvaluations] = useState<Evaluation[]>([]);
-  const [jobAnalysis, setJobAnalysis] = useState<any>(null);
+  const [jobAnalysis, setJobAnalysis] = useState<JobAnalysis | null>(null);
   const [skillsGapAnalysis, setSkillsGapAnalysis] = useState<string[]>([]);
   const [skillsTested, setSkillsTested] = useState<string[]>([]);
 
