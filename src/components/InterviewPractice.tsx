@@ -50,6 +50,9 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [allEvaluations, setAllEvaluations] = useState<Evaluation[]>([]);
+  const [jobAnalysis, setJobAnalysis] = useState<any>(null);
+  const [skillsGapAnalysis, setSkillsGapAnalysis] = useState<string[]>([]);
+  const [skillsTested, setSkillsTested] = useState<string[]>([]);
 
   const {
     currentState,
@@ -72,9 +75,22 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
 
       // For custom train mode, generate question from job description
       if (mode === 'train' && trainMethod === 'custom' && jobDescription) {
-        const { question, modelAnswer: answer } = await getCustomQA(jobDescription, newSession.id);
+        const response = await getCustomQA(jobDescription, newSession.id, true);
+        const { question, modelAnswer: answer, jobAnalysis: analysis, skillsGapAnalysis: gap, skillsTested: tested } = response;
+        
         setQuestionNumber(1);
         setModelAnswer(answer);
+        
+        // Store job analysis and skills information
+        if (analysis) {
+          setJobAnalysis(analysis);
+        }
+        if (gap) {
+          setSkillsGapAnalysis(gap);
+        }
+        if (tested) {
+          setSkillsTested(tested);
+        }
 
         const { audio } = await synthesizeSpeech(question.question_text);
         startCycle(question);
@@ -406,9 +422,19 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
     try {
       // For custom train mode, generate from job description
       if (mode === 'train' && trainMethod === 'custom' && jobDescription) {
-        const { question, modelAnswer: answer } = await getCustomQA(jobDescription, session.id);
+        const response = await getCustomQA(jobDescription, session.id, false);
+        const { question, modelAnswer: answer, skillsGapAnalysis: gap, skillsTested: tested } = response;
+        
         setQuestionNumber(prev => prev + 1);
         setModelAnswer(answer);
+        
+        // Update skills information for new question
+        if (gap) {
+          setSkillsGapAnalysis(gap);
+        }
+        if (tested) {
+          setSkillsTested(tested);
+        }
 
         const { audio } = await synthesizeSpeech(question.question_text);
         
@@ -709,6 +735,38 @@ export function InterviewPractice({ initialMode = 'practice' }: InterviewPractic
                   {stateDisplay.title}
                 </span>
               </div>
+
+              {/* Job Analysis Info for Custom Training Mode */}
+              {mode === 'train' && trainMethod === 'custom' && jobAnalysis && (
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 mb-4 border border-indigo-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-sm font-semibold text-indigo-900">Job Analysis</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="font-medium text-gray-700">Position:</span>{' '}
+                      <span className="text-gray-600">{jobAnalysis.jobTitle}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Level:</span>{' '}
+                      <span className="text-gray-600 capitalize">{jobAnalysis.difficultyLevel}</span>
+                    </div>
+                    {skillsTested.length > 0 && (
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-gray-700">Testing Skills:</span>{' '}
+                        <span className="text-gray-600">{skillsTested.join(', ')}</span>
+                      </div>
+                    )}
+                    {skillsGapAnalysis.length > 0 && (
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-orange-700">Other Required Skills:</span>{' '}
+                        <span className="text-gray-600 text-xs">{skillsGapAnalysis.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 {isLoading ? (

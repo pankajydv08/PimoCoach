@@ -57,16 +57,31 @@ export async function getModelAnswer(questionText: string, category: QuestionCat
   return response.json();
 }
 
-export async function getCustomQA(jobDescription: string, sessionId: string) {
+export async function getCustomQA(jobDescription: string, sessionId: string, generatePool: boolean = false) {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/question/custom-qa`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ jobDescription, sessionId })
+    body: JSON.stringify({ jobDescription, sessionId, generatePool })
   });
 
   if (!response.ok) {
     throw new Error('Failed to generate custom Q&A');
+  }
+
+  return response.json();
+}
+
+export async function analyzeJobDescription(jobDescription: string) {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/question/analyze-job`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ jobDescription })
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to analyze job description');
   }
 
   return response.json();
