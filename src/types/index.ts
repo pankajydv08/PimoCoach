@@ -87,3 +87,14 @@ export interface Evaluation {
   strengths: string[];
   areas_to_improve: string[];
 }
+
+export interface JobAnalysis {
+  jobTitle: string;
+  jobCategory: string;
+  difficultyLevel: 'entry' | 'mid' | 'senior';
+  requiredSkills: string[];
+  keyResponsibilities: string[];
+  experienceLevel: string;
+  technicalSkills: string[];
+  softSkills: string[];
+}

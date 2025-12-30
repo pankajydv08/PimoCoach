@@ -1,6 +1,12 @@
 import express from 'express';
 import { supabase } from '../utils/supabase';
-import { generateQuestion, generateModelAnswer, generateCustomQA } from '../utils/azureGPT';
+import { 
+  generateQuestion, 
+  generateModelAnswer, 
+  generateCustomQA,
+  analyzeJobDescription,
+  generateQuestionPool 
+} from '../utils/azureGPT';
 
 const router = express.Router();
 
@@ -92,11 +98,15 @@ router.post('/model-answer', async (req, res) => {
 
 router.post('/custom-qa', async (req, res) => {
   try {
-    const { jobDescription, sessionId } = req.body;
+    const { jobDescription, sessionId, generatePool = false } = req.body;
 
     if (!jobDescription) {
       return res.status(400).json({ error: 'Job description is required' });
     }
+
+    // Analyze the job description first
+    const jobAnalysis = await analyzeJobDescription(jobDescription);
+    console.log('Job Analysis:', jobAnalysis);
 
     // Get previously asked questions for this session
     const { data: existingResponses } = await supabase
@@ -108,16 +118,28 @@ router.post('/custom-qa', async (req, res) => {
       r => (r as any).interview_questions?.question_text
     ).filter(Boolean) || [];
 
-    const { question, answer } = await generateCustomQA(jobDescription, previousQuestions);
+    // Generate question pool if requested (for first time or when pool is empty)
+    let questionPool = null;
+    if (generatePool) {
+      questionPool = await generateQuestionPool(jobDescription, jobAnalysis, 8);
+      console.log('Generated question pool:', questionPool?.length, 'questions');
+    }
+
+    // Generate one question using enhanced analysis
+    const { question, answer, category, difficulty, skillsTested } = await generateCustomQA(
+      jobDescription, 
+      previousQuestions, 
+      jobAnalysis
+    );
 
     // Save the generated question to database
     const { data: newQuestion, error: insertError } = await supabase
       .from('interview_questions')
       .insert({
         question_text: question,
-        category: 'custom',
-        difficulty: 'medium',
-        expected_keywords: [],
+        category: category,
+        difficulty: difficulty,
+        expected_keywords: skillsTested,
         follow_up_prompts: []
       })
       .select()
@@ -128,13 +150,50 @@ router.post('/custom-qa', async (req, res) => {
       return res.status(500).json({ error: 'Failed to save question' });
     }
 
+    // Skills gap analysis - identify which skills are being tested vs required
+    const allRequiredSkills = [...jobAnalysis.requiredSkills, ...jobAnalysis.technicalSkills];
+    
+    // Create lowercase array for comparison
+    const testedSkillsLower = skillsTested.map(s => s.toLowerCase());
+    
+    // Helper function to check if a skill is tested (with substring matching)
+    const isSkillTested = (skill: string): boolean => {
+      const skillLower = skill.toLowerCase();
+      return testedSkillsLower.some(tested => 
+        tested.includes(skillLower) || skillLower.includes(tested)
+      );
+    };
+    
+    const skillsGapAnalysis = allRequiredSkills.filter(skill => !isSkillTested(skill));
+
     res.json({ 
       question: newQuestion,
-      modelAnswer: answer 
+      modelAnswer: answer,
+      jobAnalysis: jobAnalysis,
+      skillsGapAnalysis: skillsGapAnalysis.slice(0, 5), // Top 5 untested skills
+      questionPool: questionPool,
+      skillsTested: skillsTested
     });
   } catch (error) {
     console.error('Error in /custom-qa:', error);
     res.status(500).json({ error: 'Failed to generate custom Q&A' });
+  }
+});
+
+router.post('/analyze-job', async (req, res) => {
+  try {
+    const { jobDescription } = req.body;
+
+    if (!jobDescription) {
+      return res.status(400).json({ error: 'Job description is required' });
+    }
+
+    const jobAnalysis = await analyzeJobDescription(jobDescription);
+
+    res.json({ jobAnalysis });
+  } catch (error) {
+    console.error('Error in /analyze-job:', error);
+    res.status(500).json({ error: 'Failed to analyze job description' });
   }
 });
 
