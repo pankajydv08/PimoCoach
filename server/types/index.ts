@@ -68,3 +68,30 @@ export interface GPTEvaluation {
   strengths: string[];
   areas_to_improve: string[];
 }
+
+export interface JobAnalysis {
+  jobTitle: string;
+  jobCategory: string;
+  difficultyLevel: 'entry' | 'mid' | 'senior';
+  requiredSkills: string[];
+  keyResponsibilities: string[];
+  experienceLevel: string;
+  technicalSkills: string[];
+  softSkills: string[];
+}
+
+export interface QuestionPoolItem {
+  question: string;
+  answer: string;
+  category: string;
+  difficulty: string;
+  skillsTested: string[];
+}
+
+export interface CustomQAResponse {
+  question: InterviewQuestion;
+  modelAnswer: string;
+  jobAnalysis?: JobAnalysis;
+  skillsGapAnalysis?: string[];
+  questionPool?: QuestionPoolItem[];
+}

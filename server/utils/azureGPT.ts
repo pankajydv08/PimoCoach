@@ -1,6 +1,6 @@
 import ModelClient, { isUnexpected } from "@azure-rest/ai-inference";
 import { AzureKeyCredential } from "@azure/core-auth";
-import { GPTEvaluation } from '../types';
+import { GPTEvaluation, JobAnalysis, QuestionPoolItem } from '../types';
 
 const token = process.env.GITHUB_TOKEN || '';
 const endpoint = "https://models.github.ai/inference";
@@ -116,12 +116,191 @@ Return ONLY the model answer text, nothing else.`;
   }
 }
 
-export async function generateCustomQA(
-  jobDescription: string,
-  previousQuestions: string[] = []
-): Promise<{ question: string; answer: string }> {
+export async function analyzeJobDescription(
+  jobDescription: string
+): Promise<JobAnalysis> {
   try {
     const client = getClient();
+
+    const prompt = `Analyze this job description and extract key information:
+
+Job Description:
+"""
+${jobDescription}
+"""
+
+Provide a detailed analysis in JSON format with these exact fields:
+{
+  "jobTitle": "<extracted or inferred job title>",
+  "jobCategory": "<category: software_engineer, data_analyst, product_manager, designer, sales, marketing, hr, finance, operations, or other>",
+  "difficultyLevel": "<entry, mid, or senior based on experience requirements>",
+  "requiredSkills": ["<skill1>", "<skill2>", ...],
+  "keyResponsibilities": ["<responsibility1>", "<responsibility2>", ...],
+  "experienceLevel": "<e.g., '2-4 years', '5+ years', 'entry-level'>",
+  "technicalSkills": ["<technical skill1>", "<technical skill2>", ...],
+  "softSkills": ["<soft skill1>", "<soft skill2>", ...]
+}
+
+Guidelines:
+- For jobTitle: Extract from description or infer from requirements
+- For jobCategory: Choose the most appropriate category
+- For difficultyLevel: 'entry' for 0-2 years, 'mid' for 2-5 years, 'senior' for 5+ years
+- For requiredSkills: List all mentioned skills and technologies
+- For keyResponsibilities: Extract main duties and responsibilities
+- For technicalSkills: Programming languages, frameworks, tools, technologies
+- For softSkills: Communication, leadership, teamwork, problem-solving, etc.`;
+
+    const response = await client.path("/chat/completions").post({
+      body: {
+        messages: [
+          { role: 'system', content: 'You are an expert HR analyst and job description parser. Extract structured information from job descriptions accurately.' },
+          { role: 'user', content: prompt }
+        ],
+        model: model,
+        temperature: 0.3,
+        max_tokens: 800,
+        response_format: { type: 'json_object' }
+      }
+    });
+
+    if (isUnexpected(response)) {
+      throw response.body.error;
+    }
+
+    const content = response.body.choices[0]?.message?.content || '{}';
+    const analysis = JSON.parse(content) as JobAnalysis;
+
+    return {
+      jobTitle: analysis.jobTitle || 'Position',
+      jobCategory: analysis.jobCategory || 'general',
+      difficultyLevel: analysis.difficultyLevel || 'mid',
+      requiredSkills: analysis.requiredSkills || [],
+      keyResponsibilities: analysis.keyResponsibilities || [],
+      experienceLevel: analysis.experienceLevel || 'Not specified',
+      technicalSkills: analysis.technicalSkills || [],
+      softSkills: analysis.softSkills || []
+    };
+  } catch (error) {
+    console.error('Error analyzing job description:', error);
+    return {
+      jobTitle: 'Position',
+      jobCategory: 'general',
+      difficultyLevel: 'mid',
+      requiredSkills: [],
+      keyResponsibilities: [],
+      experienceLevel: 'Not specified',
+      technicalSkills: [],
+      softSkills: []
+    };
+  }
+}
+
+export async function generateQuestionPool(
+  jobDescription: string,
+  jobAnalysis: JobAnalysis,
+  poolSize: number = 8
+): Promise<QuestionPoolItem[]> {
+  try {
+    const client = getClient();
+
+    const difficultyMap = {
+      'entry': 'easy to medium',
+      'mid': 'medium',
+      'senior': 'medium to hard'
+    };
+
+    const prompt = `Based on this job description and analysis, generate ${poolSize} diverse interview questions with model answers:
+
+Job Description:
+"""
+${jobDescription}
+"""
+
+Job Analysis:
+- Title: ${jobAnalysis.jobTitle}
+- Category: ${jobAnalysis.jobCategory}
+- Level: ${jobAnalysis.difficultyLevel}
+- Required Skills: ${jobAnalysis.requiredSkills.join(', ')}
+- Technical Skills: ${jobAnalysis.technicalSkills.join(', ')}
+- Soft Skills: ${jobAnalysis.softSkills.join(', ')}
+
+Generate a JSON response with a "questions" array containing ${poolSize} question objects with these exact fields:
+{
+  "questions": [
+    {
+      "question": "<specific interview question>",
+      "answer": "<concise model answer, 2-3 sentences, 30-50 words>",
+      "category": "<behavioral, technical, or situational>",
+      "difficulty": "<easy, medium, or hard>",
+      "skillsTested": ["<skill1>", "<skill2>"]
+    },
+    ...
+  ]
+}
+
+Requirements:
+- Create a diverse mix of question types (behavioral, technical, situational)
+- Questions should test different skills from the job requirements
+- Difficulty should be ${difficultyMap[jobAnalysis.difficultyLevel]} based on ${jobAnalysis.difficultyLevel} level
+- Include questions about technical skills: ${jobAnalysis.technicalSkills.slice(0, 3).join(', ')}
+- Include questions about soft skills: ${jobAnalysis.softSkills.slice(0, 3).join(', ')}
+- Each question should be directly relevant to the role
+- Model answers should demonstrate relevant experience
+- Vary the difficulty across the pool
+- Make questions specific to the role, not generic`;
+
+    const response = await client.path("/chat/completions").post({
+      body: {
+        messages: [
+          { role: 'system', content: INTERVIEWER_SYSTEM_PROMPT },
+          { role: 'user', content: prompt }
+        ],
+        model: model,
+        temperature: 0.8,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' }
+      }
+    });
+
+    if (isUnexpected(response)) {
+      throw response.body.error;
+    }
+
+    const content = response.body.choices[0]?.message?.content || '{"questions":[]}';
+    const parsed = JSON.parse(content) as { questions: QuestionPoolItem[] };
+
+    return parsed.questions || [];
+  } catch (error) {
+    console.error('Error generating question pool:', error);
+    return [];
+  }
+}
+
+export async function generateCustomQA(
+  jobDescription: string,
+  previousQuestions: string[] = [],
+  jobAnalysis?: JobAnalysis
+): Promise<{ question: string; answer: string; category: string; difficulty: string; skillsTested: string[] }> {
+  try {
+    const client = getClient();
+
+    // Use provided analysis or create a quick one
+    const analysis = jobAnalysis || {
+      jobTitle: 'Position',
+      jobCategory: 'general',
+      difficultyLevel: 'mid' as const,
+      requiredSkills: [],
+      keyResponsibilities: [],
+      experienceLevel: 'Not specified',
+      technicalSkills: [],
+      softSkills: []
+    };
+
+    const difficultyMap = {
+      'entry': 'easy to medium',
+      'mid': 'medium',
+      'senior': 'medium to hard'
+    };
 
     const prompt = `Based on this job description, generate ONE highly relevant interview question and a model answer:
 
@@ -130,25 +309,39 @@ Job Description:
 ${jobDescription}
 """
 
+Job Analysis:
+- Title: ${analysis.jobTitle}
+- Category: ${analysis.jobCategory}
+- Level: ${analysis.difficultyLevel}
+- Required Skills: ${analysis.requiredSkills.slice(0, 5).join(', ')}
+- Technical Skills: ${analysis.technicalSkills.slice(0, 3).join(', ')}
+- Soft Skills: ${analysis.softSkills.slice(0, 3).join(', ')}
+
 ${previousQuestions.length > 0 ? `Previously asked questions (avoid these): ${previousQuestions.join(', ')}` : ''}
 
 Generate a JSON response with these exact fields:
 {
   "question": "<A specific, relevant interview question based on the job description>",
-  "answer": "<A concise, professional model answer (2-3 sentences, 30-50 words)>"
+  "answer": "<A concise, professional model answer (2-3 sentences, 30-50 words)>",
+  "category": "<behavioral, technical, or situational>",
+  "difficulty": "<easy, medium, or hard>",
+  "skillsTested": ["<skill1>", "<skill2>"]
 }
 
 The question should:
 - Be directly relevant to the job requirements
 - Test skills/experience mentioned in the job description
-- Be behavioral or technical based on the role
+- Be appropriate for ${analysis.difficultyLevel} level (${difficultyMap[analysis.difficultyLevel]} difficulty)
+- Be behavioral, technical, or situational based on the role
 - Be clear and specific
+- Test one or more of the required skills
 
 The answer should:
-- Demonstrate relevant experience
+- Demonstrate relevant experience for ${analysis.jobTitle}
 - Show skills matching the job requirements
 - Be confident and professional
-- Be natural and conversational`;
+- Be natural and conversational
+- Be 30-50 words (2-3 sentences)`;
 
     const response = await client.path("/chat/completions").post({
       body: {
@@ -168,17 +361,29 @@ The answer should:
     }
 
     const content = response.body.choices[0]?.message?.content || '{}';
-    const qa = JSON.parse(content) as { question: string; answer: string };
+    const qa = JSON.parse(content) as { 
+      question: string; 
+      answer: string; 
+      category?: string; 
+      difficulty?: string; 
+      skillsTested?: string[] 
+    };
 
     return {
       question: qa.question || 'Tell me about your relevant experience.',
-      answer: qa.answer || 'I have extensive experience that aligns well with this role.'
+      answer: qa.answer || 'I have extensive experience that aligns well with this role.',
+      category: qa.category || 'behavioral',
+      difficulty: qa.difficulty || 'medium',
+      skillsTested: qa.skillsTested || []
     };
   } catch (error) {
     console.error('Error generating custom Q&A:', error);
     return {
       question: 'Tell me about your relevant experience for this role.',
-      answer: 'I have extensive experience that aligns well with the requirements of this position.'
+      answer: 'I have extensive experience that aligns well with the requirements of this position.',
+      category: 'behavioral',
+      difficulty: 'medium',
+      skillsTested: []
     };
   }
 }
