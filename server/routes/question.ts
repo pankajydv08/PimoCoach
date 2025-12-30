@@ -152,12 +152,20 @@ router.post('/custom-qa', async (req, res) => {
 
     // Skills gap analysis - identify which skills are being tested vs required
     const allRequiredSkills = [...jobAnalysis.requiredSkills, ...jobAnalysis.technicalSkills];
-    const skillsGapAnalysis = allRequiredSkills.filter(
-      skill => !skillsTested.some(tested => 
-        tested.toLowerCase().includes(skill.toLowerCase()) || 
-        skill.toLowerCase().includes(tested.toLowerCase())
-      )
-    );
+    
+    // Create lowercase sets for efficient O(1) lookups
+    const testedSkillsLower = new Set(skillsTested.map(s => s.toLowerCase()));
+    
+    const skillsGapAnalysis = allRequiredSkills.filter(skill => {
+      const skillLower = skill.toLowerCase();
+      // Check if any tested skill matches
+      for (const tested of testedSkillsLower) {
+        if (tested.includes(skillLower) || skillLower.includes(tested)) {
+          return false; // Skill is tested, exclude from gap
+        }
+      }
+      return true; // Skill not tested, include in gap
+    });
 
     res.json({ 
       question: newQuestion,

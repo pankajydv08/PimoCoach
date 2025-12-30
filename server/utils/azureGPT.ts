@@ -18,6 +18,18 @@ function getClient() {
   return client;
 }
 
+// Default job analysis for fallback scenarios
+const DEFAULT_JOB_ANALYSIS: JobAnalysis = {
+  jobTitle: 'Position',
+  jobCategory: 'general',
+  difficultyLevel: 'mid',
+  requiredSkills: [],
+  keyResponsibilities: [],
+  experienceLevel: 'Not specified',
+  technicalSkills: [],
+  softSkills: []
+};
+
 const INTERVIEWER_SYSTEM_PROMPT = `You are an AI Interview Coach using the Pimsleur method for interview practice.
 
 Your role is to:
@@ -171,26 +183,18 @@ Guidelines:
     const analysis = JSON.parse(content) as JobAnalysis;
 
     return {
-      jobTitle: analysis.jobTitle || 'Position',
-      jobCategory: analysis.jobCategory || 'general',
-      difficultyLevel: analysis.difficultyLevel || 'mid',
-      requiredSkills: analysis.requiredSkills || [],
-      keyResponsibilities: analysis.keyResponsibilities || [],
-      experienceLevel: analysis.experienceLevel || 'Not specified',
-      technicalSkills: analysis.technicalSkills || [],
-      softSkills: analysis.softSkills || []
+      jobTitle: analysis.jobTitle || DEFAULT_JOB_ANALYSIS.jobTitle,
+      jobCategory: analysis.jobCategory || DEFAULT_JOB_ANALYSIS.jobCategory,
+      difficultyLevel: analysis.difficultyLevel || DEFAULT_JOB_ANALYSIS.difficultyLevel,
+      requiredSkills: analysis.requiredSkills || DEFAULT_JOB_ANALYSIS.requiredSkills,
+      keyResponsibilities: analysis.keyResponsibilities || DEFAULT_JOB_ANALYSIS.keyResponsibilities,
+      experienceLevel: analysis.experienceLevel || DEFAULT_JOB_ANALYSIS.experienceLevel,
+      technicalSkills: analysis.technicalSkills || DEFAULT_JOB_ANALYSIS.technicalSkills,
+      softSkills: analysis.softSkills || DEFAULT_JOB_ANALYSIS.softSkills
     };
   } catch (error) {
     console.error('Error analyzing job description:', error);
-    return {
-      jobTitle: 'Position',
-      jobCategory: 'general',
-      difficultyLevel: 'mid',
-      requiredSkills: [],
-      keyResponsibilities: [],
-      experienceLevel: 'Not specified',
-      technicalSkills: [],
-      softSkills: []
+    return { ...DEFAULT_JOB_ANALYSIS };
     };
   }
 }
@@ -285,16 +289,7 @@ export async function generateCustomQA(
     const client = getClient();
 
     // Use provided analysis or create a quick one
-    const analysis = jobAnalysis || {
-      jobTitle: 'Position',
-      jobCategory: 'general',
-      difficultyLevel: 'mid' as const,
-      requiredSkills: [],
-      keyResponsibilities: [],
-      experienceLevel: 'Not specified',
-      technicalSkills: [],
-      softSkills: []
-    };
+    const analysis = jobAnalysis || { ...DEFAULT_JOB_ANALYSIS };
 
     const difficultyMap = {
       'entry': 'easy to medium',
